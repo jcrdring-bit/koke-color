@@ -1,5 +1,7 @@
 # 🌿 KOKE COLOR - Naturaleza que flota (José C. Paz)
 
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/jcrdring-bit/koke-color)
+
 Aplicación web y de escritorio para el catálogo artesanal de kokedamas vivas, con chatbot inteligente con IA (DeepSeek), pagos integrados con Mercado Pago, reproducción de música zen botánica y panel CRM de administración.
 
 ---
