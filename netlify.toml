@@ -9,6 +9,12 @@
   to = "/.netlify/functions/chat"
   status = 200
 
+# Endpoint Webhook oficial para Meta / WhatsApp Cloud API
+[[redirects]]
+  from = "/api/webhook"
+  to = "/.netlify/functions/webhook"
+  status = 200
+
 # Redirección SPA estándar
 [[redirects]]
   from = "/*"
