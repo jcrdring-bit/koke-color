@@ -201,19 +201,57 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
         </div>
       </div>
 
-      {/* Preparación Supabase & Netlify */}
-      <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 space-y-2">
-        <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
-          <Database className="w-4 h-4 text-emerald-700" />
-          <span>Migración a Supabase & Despliegue en Netlify</span>
+      {/* Conexión a Base de Datos en la Nube (Supabase) */}
+      <div className="bg-[#FAF8F5] p-4 rounded-2xl border border-surface-border space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-emerald-700" />
+            <h4 className="font-bold text-[#1C1917] text-sm">
+              Base de Datos en la Nube (Supabase)
+            </h4>
+          </div>
+          {formData.supabaseUrl && formData.supabaseAnonKey ? (
+            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+              🟢 Supabase Conectado
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+              🟡 Modo Local (Sin nube)
+            </span>
+          )}
         </div>
-        <p className="text-[#1C1917] text-[11px] leading-relaxed">
-          El proyecto incluye el script <code>supabase/schema.sql</code> y el archivo <code>netlify.toml</code>. Cuando quieras subir la app a la nube:
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[#78716C] mb-1 font-medium">
+              Supabase Project URL:
+            </label>
+            <input
+              type="text"
+              placeholder="https://tu-proyecto.supabase.co"
+              value={formData.supabaseUrl || ''}
+              onChange={(e) => setFormData({ ...formData, supabaseUrl: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl bg-white border border-surface-border font-mono text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[#78716C] mb-1 font-medium">
+              Supabase Anon Public Key:
+            </label>
+            <input
+              type="password"
+              placeholder="eyJhbGciOiJIUzI1NiIsIn..."
+              value={formData.supabaseAnonKey || ''}
+              onChange={(e) => setFormData({ ...formData, supabaseAnonKey: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl bg-white border border-surface-border font-mono text-xs"
+            />
+          </div>
+        </div>
+
+        <p className="text-[11px] text-[#78716C] leading-relaxed">
+          Pega aquí las credenciales de tu proyecto de Supabase (Project Settings ➔ API). Al guardarlas, el catálogo, los clientes y las consultas se sincronizarán directamente en la nube.
         </p>
-        <ol className="list-decimal pl-4 space-y-0.5 text-[11px] text-[#78716C]">
-          <li>Crea tu proyecto gratuito en <strong>Supabase</strong> y pega el contenido de <code>supabase/schema.sql</code> en el SQL Editor.</li>
-          <li>Conecta tu repositorio a <strong>Netlify</strong>: el archivo <code>netlify.toml</code> se encargará del build automático.</li>
-        </ol>
       </div>
 
       {/* Botón Guardar */}

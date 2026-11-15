@@ -1,6 +1,7 @@
 import { Plant, CustomerLead, ConversationLog, StoreSettings } from '../types';
 import { INITIAL_PLANTS } from '../data/plants';
 import { securityService, LoginResult } from './security';
+import { createClient } from '@supabase/supabase-js';
 
 const STORAGE_KEYS = {
   PLANTS: 'koke_color_plants_v2',
@@ -20,6 +21,8 @@ export const defaultSettings: StoreSettings = {
   mercadopagoCvu: import.meta.env.VITE_MERCADOPAGO_CVU || '0000003100040664164018',
   mercadopagoQrUrl: import.meta.env.VITE_MERCADOPAGO_QR_URL || '',
   deepseekApiKey: import.meta.env.VITE_DEEPSEEK_API_KEY || '',
+  supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
+  supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
 };
 
 export const dbService = {
@@ -74,6 +77,48 @@ export const dbService = {
     return INITIAL_PLANTS;
   },
 
+  // === CONEXIÓN SUPABASE EN LA NUBE ===
+  getSupabaseClient() {
+    const settings = this.getSettings();
+    const url = settings.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+    const key = settings.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (url && key && url.startsWith('https://') && key.length > 20) {
+      return createClient(url, key);
+    }
+    return null;
+  },
+
+  async syncPlantsFromSupabase(): Promise<Plant[] | null> {
+    const client = this.getSupabaseClient();
+    if (!client) return null;
+
+    try {
+      const { data, error } = await client.from('plants').select('*');
+      if (!error && data && data.length > 0) {
+        const mapped: Plant[] = data.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          scientificName: d.scientific_name,
+          origin: d.origin,
+          light: d.light,
+          price: Number(d.price),
+          categories: d.categories || [],
+          inStock: d.in_stock,
+          imageUrl: d.image_url,
+          description: d.description,
+          wateringGuide: d.watering_guide,
+          lightGuide: d.light_guide,
+          careTips: d.care_tips || []
+        }));
+        this.savePlants(mapped);
+        return mapped;
+      }
+    } catch (e) {
+      console.warn('Error al sincronizar plantas desde Supabase:', e);
+    }
+    return null;
+  },
+
   // === AJUSTES DE COMERCIO ===
   getSettings(): StoreSettings {
     try {
@@ -112,6 +157,20 @@ export const dbService = {
       updated = [conv, ...all];
     }
     localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(updated.slice(0, 100)));
+
+    // Sincronización en la nube con Supabase
+    const client = this.getSupabaseClient();
+    if (client) {
+      Promise.resolve(
+        client.from('conversations').insert({
+          session_id: conv.sessionId,
+          started_at: conv.startedAt,
+          last_message_at: conv.lastMessageAt,
+          derived_to_whatsapp: conv.derivedToWhatsapp,
+          whatsapp_line: conv.whatsappLine
+        })
+      ).catch(() => {});
+    }
   },
 
   getLeads(): CustomerLead[] {
@@ -154,6 +213,20 @@ export const dbService = {
       };
       localStorage.setItem(STORAGE_KEYS.LEADS, JSON.stringify([lead, ...leads]));
     }
+
+    // Sincronización en la nube con Supabase
+    const client = this.getSupabaseClient();
+    if (client) {
+      Promise.resolve(
+        client.from('customers').insert({
+          name: lead.name,
+          phone: lead.phone,
+          whatsapp_channel: lead.whatsappLine,
+          notes: `Interesado en: ${lead.selectedPlants.join(', ')}`
+        })
+      ).catch(() => {});
+    }
+
     return lead;
   },
 
