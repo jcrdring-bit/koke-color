@@ -4,7 +4,7 @@ import { securityService, LoginResult } from './security';
 import { createClient } from '@supabase/supabase-js';
 
 const STORAGE_KEYS = {
-  PLANTS: 'koke_color_plants_v2',
+  PLANTS: 'koke_color_plants_v3',
   SETTINGS: 'koke_color_settings_v1',
   CONVERSATIONS: 'koke_color_conversations_v1',
   LEADS: 'koke_color_leads_v1',
@@ -31,12 +31,23 @@ export const dbService = {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.PLANTS);
       if (data) {
-        return JSON.parse(data);
+        const parsed: Plant[] = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Asegurar que si falta la Espada de San Jorge se incorpore automáticamente
+          if (!parsed.some(p => p.id === 'espada-de-san-jorge')) {
+            const sanJorge = INITIAL_PLANTS.find(p => p.id === 'espada-de-san-jorge');
+            if (sanJorge) {
+              parsed.push(sanJorge);
+              localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(parsed));
+            }
+          }
+          return parsed;
+        }
       }
     } catch (e) {
       console.error('Error reading plants from storage', e);
     }
-    // Inicializar con las 15 plantas de muestra
+    // Inicializar con el catálogo completo de muestra
     localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(INITIAL_PLANTS));
     return INITIAL_PLANTS;
   },

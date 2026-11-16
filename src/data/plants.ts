@@ -285,5 +285,24 @@ export const INITIAL_PLANTS: Plant[] = [
       'Mínimo mantenimiento, máxima duración.',
       'Se pueden ubicar juntas en una bandeja o distribuidas.'
     ]
+  },
+  {
+    id: 'espada-de-san-jorge',
+    name: 'Espada de San Jorge',
+    scientificName: 'Sansevieria trifasciata',
+    origin: 'África tropical',
+    light: 'Media sombra / Luz indirecta',
+    price: 22000,
+    categories: ['Todas', 'Sombra', 'Color'],
+    inStock: true,
+    imageUrl: '/images/espada-san-jorge.jpg',
+    description: 'Hojas erectas y esculturales en tonos verde oscuro con márgenes dorados y jaspeado característico. Montada en esfera de fibra natural; es una de las plantas más resistentes y purificadoras del aire.',
+    wateringGuide: 'Riego muy espaciado por inmersión de 10 minutos cada 15 a 20 días. Tolera períodos prolongados de sequedad.',
+    lightGuide: 'Muy versátil: prospera tanto con buena luz indirecta como en zonas de sombra o baja iluminación.',
+    careTips: [
+      'Evitar el exceso de humedad: el sustrato debe secarse por completo entre riegos.',
+      'Excelente planta purificadora de ambientes y toxinas en interiores.',
+      'Muy noble y de bajísimo mantenimiento, ideal para dormitorios u oficinas.'
+    ]
   }
 ];
