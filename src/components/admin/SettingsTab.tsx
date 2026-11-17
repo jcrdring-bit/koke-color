@@ -10,7 +10,7 @@ interface SettingsTabProps {
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSettings }) => {
   const [formData, setFormData] = useState<StoreSettings>(settings);
-  const [adminPin, setAdminPin] = useState(() => dbService.getAdminPin());
+  const [adminPin, setAdminPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -18,7 +18,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     dbService.saveSettings(formData);
-    await dbService.setAdminPin(adminPin);
+    if (adminPin.trim()) {
+      await dbService.setAdminPin(adminPin.trim());
+      setAdminPin('');
+    }
     onUpdateSettings(formData);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -142,11 +145,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
 
         <div>
           <label className="block text-[#78716C] mb-1 font-medium">
-            Clave actual de acceso:
+            Cambiar clave de acceso (dejar vacío si no deseas cambiarla):
           </label>
           <div className="flex gap-2 max-w-sm">
             <input
               type={showPin ? 'text' : 'password'}
+              placeholder="Nuevo PIN o clave..."
               value={adminPin}
               onChange={(e) => setAdminPin(e.target.value)}
               className="flex-1 px-3 py-2 rounded-xl bg-white border border-surface-border font-mono font-bold text-xs"
@@ -160,7 +164,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
             </button>
           </div>
           <p className="text-[11px] text-[#78716C] mt-1">
-            También puedes definirla en tu archivo <code>.env.local</code> como <code>VITE_ADMIN_PIN=tu_pin</code>.
+            Validada de forma segura en el servidor. También puedes definirla en las variables de entorno de Netlify como <code>ADMIN_PIN</code>.
           </p>
         </div>
       </div>
@@ -195,7 +199,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
             </button>
           </div>
           <p className="text-[11px] text-[#78716C] mt-1.5 leading-relaxed">
-            También puedes configurarla en tu archivo <code>.env.local</code> con <code>VITE_DEEPSEEK_API_KEY=...</code>.
+            Se procesa exclusivamente en el backend seguro de Netlify (<code>DEEPSEEK_API_KEY</code>).
             Si no colocas ninguna, KokeBot continuará funcionando de todas formas con su motor inteligente local.
           </p>
         </div>

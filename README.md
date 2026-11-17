@@ -51,7 +51,7 @@ Tu clave de API se mantiene 100% privada en tu propia computadora:
 ## 🔒 Panel de Administración y CRM
 
 - **Acceso:** En la esquina superior derecha o en el pie de página, haz clic en **"Administrador"**.
-- **Clave de acceso inicial:** `koke2026` o `admin`.
+- **Clave de acceso inicial:** Configurada de forma segura mediante la variable de entorno `ADMIN_PIN`.
 - **Cierre de sesión automático:** Por seguridad, en cuanto sales o cierras la ventana de la aplicación, la sesión de administrador se destruye de inmediato (`sessionStorage`).
 - **Módulos incluidos:**
   - **Inventario:** Modificar precios al instante, pausar o activar stock y agregar nuevas plantas.

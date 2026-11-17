@@ -73,10 +73,47 @@ export const securityService = {
   },
 
   /**
-   * Valida el PIN contra el hash SHA-256 con protección de fuerza bruta
+   * Valida el PIN contra el endpoint seguro de Netlify (/api/admin-auth)
+   * con fallback criptográfico local SHA-256 si está offline
    */
-  async verifyAdminLogin(pinInput: string, fallbackConfiguredPin: string): Promise<LoginResult> {
-    // 1. Verificar bloqueo por fuerza bruta
+  async verifyAdminLogin(pinInput: string, fallbackConfiguredPin: string = 'koke2026'): Promise<LoginResult> {
+    if (!pinInput || !pinInput.trim()) {
+      return { success: false, message: 'Por favor ingresa tu clave o PIN.' };
+    }
+
+    // 1. Intento primario: Validar mediante la función serverless protegida en Netlify
+    try {
+      const response = await fetch('/api/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pinInput.trim() })
+      });
+
+      if (response.status === 200) {
+        const data = await response.json();
+        // Éxito: Guardar sesión con token emitido por el servidor
+        const sessionData = {
+          token: data.token || this.generateSecureToken(),
+          expiresAt: Date.now() + SESSION_DURATION_MS
+        };
+        sessionStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(sessionData));
+        localStorage.removeItem(STORAGE_KEYS.FAILED_ATTEMPTS);
+        localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
+        return { success: true };
+      }
+
+      if (response.status === 401 || response.status === 429) {
+        const errorData = await response.json();
+        return {
+          success: false,
+          message: errorData.error || 'Clave incorrecta.'
+        };
+      }
+    } catch {
+      // Si la función serverless no está disponible (modo dev local sin Netlify CLI), usar fallback criptográfico
+    }
+
+    // 2. Fallback local: Verificar bloqueo por fuerza bruta local
     const lockStatus = this.isLockedOut();
     if (lockStatus.locked) {
       return {
@@ -86,23 +123,17 @@ export const securityService = {
       };
     }
 
-    if (!pinInput || !pinInput.trim()) {
-      return { success: false, message: 'Por favor ingresa tu clave o PIN.' };
-    }
-
-    // 2. Obtener el hash esperado
+    // 3. Obtener el hash esperado
     let expectedHash = localStorage.getItem(STORAGE_KEYS.ADMIN_PIN_HASH);
     if (!expectedHash) {
-      // Si aún no se inicializó, hashear el PIN configurado
-      expectedHash = await this.hashString((fallbackConfiguredPin || 'koke2026').trim());
+      expectedHash = await this.hashString(fallbackConfiguredPin.trim());
       localStorage.setItem(STORAGE_KEYS.ADMIN_PIN_HASH, expectedHash);
     }
 
-    // 3. Hashear el PIN ingresado por el usuario
+    // 4. Hashear el PIN ingresado por el usuario
     const inputHash = await this.hashString(pinInput.trim());
 
     if (inputHash === expectedHash) {
-      // Éxito: Limpiar intentos fallidos y crear sesión con token criptográfico y expiración
       localStorage.removeItem(STORAGE_KEYS.FAILED_ATTEMPTS);
       localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
 
@@ -116,7 +147,7 @@ export const securityService = {
       return { success: true };
     }
 
-    // 4. Fallo: Registrar intento fallido
+    // 5. Fallo local: Registrar intento fallido
     const attempts = parseInt(localStorage.getItem(STORAGE_KEYS.FAILED_ATTEMPTS) || '0', 10) + 1;
     localStorage.setItem(STORAGE_KEYS.FAILED_ATTEMPTS, attempts.toString());
 

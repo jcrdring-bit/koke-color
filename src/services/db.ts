@@ -20,7 +20,7 @@ export const defaultSettings: StoreSettings = {
   mercadopagoAlias: import.meta.env.VITE_MERCADOPAGO_ALIAS || 'gringo.peque.mp',
   mercadopagoCvu: import.meta.env.VITE_MERCADOPAGO_CVU || '0000003100040664164018',
   mercadopagoQrUrl: import.meta.env.VITE_MERCADOPAGO_QR_URL || '',
-  deepseekApiKey: import.meta.env.VITE_DEEPSEEK_API_KEY || '',
+  deepseekApiKey: '', // Protegida exclusivamente en el servidor (Netlify /api/chat)
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
 };
@@ -246,17 +246,12 @@ export const dbService = {
     return securityService.isSessionValid();
   },
 
-  getAdminPin(): string {
-    return import.meta.env.VITE_ADMIN_PIN || 'koke2026';
-  },
-
   async setAdminPin(newPin: string): Promise<void> {
     await securityService.updatePin(newPin);
   },
 
   async adminLogin(pinOrPass: string): Promise<LoginResult> {
-    const configuredPin = this.getAdminPin();
-    return await securityService.verifyAdminLogin(pinOrPass, configuredPin);
+    return await securityService.verifyAdminLogin(pinOrPass);
   },
 
   adminLogout(): void {

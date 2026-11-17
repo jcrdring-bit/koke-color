@@ -9,6 +9,12 @@
   to = "/.netlify/functions/chat"
   status = 200
 
+# Endpoint seguro para autenticación de Administrador
+[[redirects]]
+  from = "/api/admin-auth"
+  to = "/.netlify/functions/admin-auth"
+  status = 200
+
 # Endpoint Webhook oficial para Meta / WhatsApp Cloud API
 [[redirects]]
   from = "/api/webhook"
