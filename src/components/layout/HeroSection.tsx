@@ -13,9 +13,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ settings }) => {
   return (
     <section className="py-10 sm:py-16 text-center max-w-4xl mx-auto px-4">
       
-      {/* Eyebrow Tag */}
-      <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 text-[#164e28] text-xs font-semibold uppercase tracking-wider mb-4 border border-emerald-100">
-        <Sparkles className="w-3.5 h-3.5" />
+      {/* Cartel Catálogo Artesanal en naranja pastel / coral */}
+      <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EC] text-[#E0533C] text-xs font-semibold uppercase tracking-wider mb-4 border border-[#FDCDB5] shadow-xs">
+        <Sparkles className="w-3.5 h-3.5 text-[#E0533C]" />
         <span>Catálogo artesanal</span>
       </div>
 
