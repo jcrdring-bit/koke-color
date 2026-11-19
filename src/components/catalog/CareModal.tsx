@@ -84,13 +84,34 @@ export const CareModal: React.FC<CareModalProps> = ({
             </div>
 
             {hasVariants && currentVariant && (
-              <span className="bg-black/60 backdrop-blur-xs px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-full border border-white"
-                  style={{ backgroundColor: currentVariant.hex }}
-                />
-                <span>Flor {currentVariant.name}</span>
-              </span>
+              <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-full text-xs font-semibold">
+                <span className="text-[11px] text-stone-200 hidden sm:inline mr-1">Flor:</span>
+                {variants.map((v, idx) => {
+                  const isActive = idx === selectedColorIndex;
+                  return (
+                    <button
+                      key={v.name}
+                      type="button"
+                      onClick={() => handleColorClick(idx)}
+                      className={`w-5 h-5 rounded-full flex items-center justify-center transition-all border border-black/30 ${
+                        isActive
+                          ? 'scale-125 ring-2 ring-white shadow-sm'
+                          : 'opacity-70 hover:opacity-100 hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: v.hex }}
+                      title={`Flor ${v.name}`}
+                    >
+                      {isActive && (
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            v.name === 'Blanco' || v.name === 'Amarillo' ? 'bg-stone-900' : 'bg-white'
+                          }`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>

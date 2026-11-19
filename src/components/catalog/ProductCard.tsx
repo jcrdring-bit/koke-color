@@ -84,7 +84,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
         {/* Bottom Badges */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 z-10">
           {plant.inStock ? (
             <button
               onClick={(e) => {
@@ -102,6 +102,40 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
         </div>
+
+        {/* Selector interactivo de colores directo sobre la foto */}
+        {hasVariants && (
+          <div 
+            className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full shadow-md z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {variants.map((v, idx) => {
+              const isActive = idx === activeColorIndex;
+              return (
+                <button
+                  key={v.name}
+                  type="button"
+                  onClick={(e) => handleColorClick(idx, e)}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center transition-all border border-black/30 ${
+                    isActive
+                      ? 'scale-125 ring-2 ring-white shadow-sm z-10'
+                      : 'opacity-75 hover:opacity-100 hover:scale-110'
+                  }`}
+                  style={{ backgroundColor: v.hex }}
+                  title={`Seleccionar flor ${v.name}`}
+                >
+                  {isActive && (
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        v.name === 'Blanco' || v.name === 'Amarillo' ? 'bg-stone-900' : 'bg-white'
+                      }`}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Card Details Body */}

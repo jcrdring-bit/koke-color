@@ -4,7 +4,7 @@ export const KALANCHOE_COLORS: PlantColorVariant[] = [
   {
     name: 'Amarillo',
     imageUrl: '/images/kalanchoe-amarillo.jpg',
-    hex: '#F59E0B'
+    hex: '#FFD700'
   },
   {
     name: 'Rojo',

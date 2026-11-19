@@ -4,7 +4,7 @@ import { securityService, LoginResult } from './security';
 import { createClient } from '@supabase/supabase-js';
 
 const STORAGE_KEYS = {
-  PLANTS: 'koke_color_plants_v3',
+  PLANTS: 'koke_color_plants_v4',
   SETTINGS: 'koke_color_settings_v1',
   CONVERSATIONS: 'koke_color_conversations_v1',
   LEADS: 'koke_color_leads_v1',
