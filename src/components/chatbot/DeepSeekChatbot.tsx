@@ -81,13 +81,14 @@ export const DeepSeekChatbot: React.FC<DeepSeekChatbotProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h4 className="font-serif text-sm font-bold leading-tight">KokeBot IA</h4>
-                  <span className="text-[10px] bg-emerald-400/20 text-emerald-200 px-1.5 py-0.2 rounded-full font-mono">
-                    DeepSeek
+                  <h4 className="font-serif text-sm font-bold leading-tight">KokeBot</h4>
+                  <span className="text-[10px] bg-emerald-400/20 text-emerald-200 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    Antigravity
                   </span>
                 </div>
                 <p className="text-[10px] text-emerald-100/80">
-                  Asesor botánico y stock en tiempo real
+                  Asesor botánico oficial • IA de Antigravity
                 </p>
               </div>
             </div>
@@ -124,10 +125,10 @@ export const DeepSeekChatbot: React.FC<DeepSeekChatbotProps> = ({
               📦 ¿Qué hay en stock?
             </button>
             <button
-              onClick={() => handleQuickQuestion('¿Cómo puedo pagar con Mercado Pago?')}
+              onClick={() => handleQuickQuestion('¿Cómo puedo pagar con tarjeta de crédito o Mercado Pago?')}
               className="text-[11px] whitespace-nowrap bg-white hover:bg-emerald-50 text-[#1C1917] border border-surface-border px-2.5 py-1 rounded-full transition-colors shrink-0"
             >
-              💳 Pagar con Mercado Pago
+              💳 Pagar con Tarjeta o MP
             </button>
           </div>
 
@@ -160,10 +161,14 @@ export const DeepSeekChatbot: React.FC<DeepSeekChatbotProps> = ({
                     {/* Botón de acción WhatsApp si aplica */}
                     {msg.action?.type === 'whatsapp' && (
                       <a
-                        href={whatsappLink}
+                        href={
+                          msg.action.payload?.query
+                            ? whatsappService.createCustomQueryLink(settings.whatsappLine2, msg.action.payload.query, settings.city)
+                            : whatsappLink
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#164e28] text-white text-[11px] font-semibold hover:bg-[#123f21] transition-all"
+                        className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#164e28] text-white text-[11px] font-semibold hover:bg-[#123f21] transition-all shadow-xs hover:scale-[1.02]"
                       >
                         <MessageCircle className="w-3.5 h-3.5 text-emerald-300" />
                         <span>{msg.action.label}</span>

@@ -1,4 +1,50 @@
-import { Plant } from '../types';
+import { Plant, PlantColorVariant } from '../types';
+
+export const KALANCHOE_COLORS: PlantColorVariant[] = [
+  {
+    name: 'Blanco',
+    imageUrl: '/images/kalanchoe-blanco.jpg',
+    hex: '#F8FAFC'
+  },
+  {
+    name: 'Rosado',
+    imageUrl: '/images/kalanchoe-rosado.jpg',
+    hex: '#F472B6'
+  },
+  {
+    name: 'Rojo',
+    imageUrl: '/images/kalanchoe-rojo.jpg',
+    hex: '#EF4444'
+  },
+  {
+    name: 'Naranja',
+    imageUrl: '/images/kalanchoe-naranja.jpg',
+    hex: '#F97316'
+  },
+  {
+    name: 'Amarillo',
+    imageUrl: '/images/kalanchoe-amarillo.jpg',
+    hex: '#EAB308'
+  }
+];
+
+export const BEGONIA_COLORS: PlantColorVariant[] = [
+  {
+    name: 'Blanco',
+    imageUrl: '/images/begonia-blanco.jpg',
+    hex: '#F8FAFC'
+  },
+  {
+    name: 'Rosado',
+    imageUrl: '/images/begonia-rosado.jpg',
+    hex: '#F472B6'
+  },
+  {
+    name: 'Rojo',
+    imageUrl: '/images/begonia-rojo.jpg',
+    hex: '#EF4444'
+  }
+];
 
 export const INITIAL_PLANTS: Plant[] = [
   {
@@ -86,8 +132,9 @@ export const INITIAL_PLANTS: Plant[] = [
     price: 25000,
     categories: ['Todas', 'Florales', 'Color'],
     inStock: true,
-    imageUrl: '/images/kalanchoe.jpeg',
-    description: 'Generosa floración en ramilletes compactos y vivos. Muy longeva y alegre, perfecta para dar toques de calidez al hogar.',
+    imageUrl: '/images/kalanchoe-rojo.jpg',
+    colorVariants: KALANCHOE_COLORS,
+    description: 'Generosa floración en ramilletes compactos y vivos. Disponible en flores de color blanco, rosado, rojo, naranja y amarillo. Muy longeva y alegre, perfecta para dar toques de calidez al hogar.',
     wateringGuide: 'Inmersión cada 8 a 10 días.',
     lightGuide: 'Luz abundante. Tolera sol suave matutino que estimula brotes.',
     careTips: [
@@ -105,8 +152,9 @@ export const INITIAL_PLANTS: Plant[] = [
     price: 20000,
     categories: ['Todas', 'Florales', 'Color'],
     inStock: true,
-    imageUrl: '/images/begonia.jpg',
-    description: 'Hojas carnosas de brillo satinado y flores continuas. Muy noble y agradecida con mínimos cuidados.',
+    imageUrl: '/images/begonia-rojo.jpg',
+    colorVariants: BEGONIA_COLORS,
+    description: 'Hojas carnosas de brillo satinado y flores continuas disponibles en color blanco, rosado y rojo. Muy noble y agradecida con mínimos cuidados.',
     wateringGuide: 'Riego semanal por inmersión de 10 minutos.',
     lightGuide: 'Media sombra con luz tamizada.',
     careTips: [

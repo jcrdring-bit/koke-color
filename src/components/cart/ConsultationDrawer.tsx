@@ -8,7 +8,7 @@ interface ConsultationDrawerProps {
   onClose: () => void;
   items: CartItem[];
   total: number;
-  onRemoveItem: (plantId: string) => void;
+  onRemoveItem: (plantId: string, color?: string) => void;
   onOpenMercadoPago: () => void;
   settings: StoreSettings;
 }
@@ -72,33 +72,47 @@ export const ConsultationDrawer: React.FC<ConsultationDrawerProps> = ({
                 <p className="text-xs text-stone-400 mt-1">Explora el catálogo y selecciona tus favoritas.</p>
               </div>
             ) : (
-              items.map((item) => (
-                <div key={item.plant.id} className="py-3.5 flex items-center gap-3.5 group">
-                  <img
-                    src={item.plant.imageUrl}
-                    alt={item.plant.name}
-                    className="w-16 h-16 rounded-2xl object-cover border border-surface-border shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-serif text-sm font-bold text-[#1C1917] truncate">
-                      {item.plant.name}
-                    </h4>
-                    <p className="text-xs text-[#78716C] italic truncate">
-                      {item.plant.scientificName}
-                    </p>
-                    <span className="font-sans text-xs font-semibold text-[#164e28] mt-1 block">
-                      $ {item.plant.price.toLocaleString('es-AR')}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => onRemoveItem(item.plant.id)}
-                    className="p-2 text-stone-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
-                    title="Quitar"
+              items.map((item) => {
+                const itemImage =
+                  item.plant.colorVariants?.find((v) => v.name === item.selectedColor)?.imageUrl ||
+                  item.plant.imageUrl;
+
+                return (
+                  <div
+                    key={`${item.plant.id}_${item.selectedColor || 'default'}`}
+                    className="py-3.5 flex items-center gap-3.5 group"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
+                    <img
+                      src={itemImage}
+                      alt={item.plant.name}
+                      className="w-16 h-16 rounded-2xl object-cover border border-surface-border shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-serif text-sm font-bold text-[#1C1917] truncate">
+                        {item.plant.name}
+                      </h4>
+                      {item.selectedColor && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#164e28] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 mt-0.5">
+                          Flor {item.selectedColor}
+                        </span>
+                      )}
+                      <p className="text-xs text-[#78716C] italic truncate">
+                        {item.plant.scientificName}
+                      </p>
+                      <span className="font-sans text-xs font-semibold text-[#164e28] mt-1 block">
+                        $ {item.plant.price.toLocaleString('es-AR')} {item.quantity > 1 ? `x${item.quantity}` : ''}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => onRemoveItem(item.plant.id, item.selectedColor)}
+                      className="p-2 text-stone-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                      title="Quitar"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
 

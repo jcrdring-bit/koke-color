@@ -1,3 +1,9 @@
+export interface PlantColorVariant {
+  name: string;
+  imageUrl: string;
+  hex: string;
+}
+
 export interface Plant {
   id: string;
   name: string;
@@ -12,11 +18,13 @@ export interface Plant {
   wateringGuide: string;
   lightGuide: string;
   careTips: string[];
+  colorVariants?: PlantColorVariant[];
 }
 
 export interface CartItem {
   plant: Plant;
   quantity: number;
+  selectedColor?: string;
 }
 
 export interface ChatMessage {
@@ -35,6 +43,8 @@ export interface CustomerLead {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
+  acceptsOffers?: boolean;
   firstContact: string;
   lastContact: string;
   queriesCount: number;
@@ -63,6 +73,7 @@ export interface StoreSettings {
   mercadopagoAlias: string;
   mercadopagoCvu?: string;
   mercadopagoQrUrl?: string;
+  mercadopagoPublicKey?: string;
   deepseekApiKey: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;

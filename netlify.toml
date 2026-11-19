@@ -15,6 +15,12 @@
   to = "/.netlify/functions/admin-auth"
   status = 200
 
+# Endpoint seguro para procesar pagos con tarjeta (Mercado Pago)
+[[redirects]]
+  from = "/api/process-payment"
+  to = "/.netlify/functions/process-payment"
+  status = 200
+
 # Endpoint Webhook oficial para Meta / WhatsApp Cloud API
 [[redirects]]
   from = "/api/webhook"
@@ -31,6 +37,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"

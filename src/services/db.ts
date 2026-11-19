@@ -16,10 +16,11 @@ export const defaultSettings: StoreSettings = {
   storeName: import.meta.env.VITE_STORE_NAME || 'Koke Color',
   city: import.meta.env.VITE_STORE_CITY || 'José C. Paz, Buenos Aires',
   whatsappLine1: import.meta.env.VITE_WHATSAPP_LINE_1 || '5491162362532',
-  whatsappLine2: import.meta.env.VITE_WHATSAPP_LINE_2 || '5491121848294',
+  whatsappLine2: import.meta.env.VITE_WHATSAPP_LINE_2 || '5491176092591',
   mercadopagoAlias: import.meta.env.VITE_MERCADOPAGO_ALIAS || 'gringo.peque.mp',
   mercadopagoCvu: import.meta.env.VITE_MERCADOPAGO_CVU || '0000003100040664164018',
   mercadopagoQrUrl: import.meta.env.VITE_MERCADOPAGO_QR_URL || '',
+  mercadopagoPublicKey: import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || import.meta.env.VITE_MP_PUBLIC_KEY || '',
   deepseekApiKey: '', // Protegida exclusivamente en el servidor (Netlify /api/chat)
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
@@ -40,6 +41,24 @@ export const dbService = {
               parsed.push(sanJorge);
               localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(parsed));
             }
+          }
+
+          // Asegurar que Kalanchoe tenga las 5 variantes de color actualizadas
+          const kalanchoeIdx = parsed.findIndex(p => p.id === 'kalanchoe');
+          const initialKalanchoe = INITIAL_PLANTS.find(p => p.id === 'kalanchoe');
+          if (kalanchoeIdx >= 0 && initialKalanchoe && (!parsed[kalanchoeIdx].colorVariants || parsed[kalanchoeIdx].colorVariants?.length !== 5)) {
+            parsed[kalanchoeIdx].colorVariants = initialKalanchoe.colorVariants;
+            parsed[kalanchoeIdx].imageUrl = initialKalanchoe.imageUrl;
+            localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(parsed));
+          }
+
+          // Asegurar que Begonia tenga las 3 variantes de color actualizadas
+          const begoniaIdx = parsed.findIndex(p => p.id === 'begonia');
+          const initialBegonia = INITIAL_PLANTS.find(p => p.id === 'begonia');
+          if (begoniaIdx >= 0 && initialBegonia && (!parsed[begoniaIdx].colorVariants || parsed[begoniaIdx].colorVariants?.length !== 3)) {
+            parsed[begoniaIdx].colorVariants = initialBegonia.colorVariants;
+            parsed[begoniaIdx].imageUrl = initialBegonia.imageUrl;
+            localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(parsed));
           }
           return parsed;
         }
@@ -119,7 +138,8 @@ export const dbService = {
           description: d.description,
           wateringGuide: d.watering_guide,
           lightGuide: d.light_guide,
-          careTips: d.care_tips || []
+          careTips: d.care_tips || [],
+          colorVariants: d.color_variants || undefined
         }));
         this.savePlants(mapped);
         return mapped;
@@ -135,7 +155,12 @@ export const dbService = {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (data) {
-        return { ...defaultSettings, ...JSON.parse(data) };
+        const parsed = JSON.parse(data);
+        if (parsed.whatsappLine2 === '5491121848294' || parsed.whatsappLine2 === '1121848294') {
+          parsed.whatsappLine2 = defaultSettings.whatsappLine2;
+          this.saveSettings({ ...defaultSettings, ...parsed });
+        }
+        return { ...defaultSettings, ...parsed };
       }
     } catch (e) {
       console.error('Error reading settings', e);
@@ -193,20 +218,33 @@ export const dbService = {
     }
   },
 
-  registerLead(name: string, phone: string | undefined, whatsappLine: string, selectedPlants: string[] = []): CustomerLead {
+  registerLead(
+    name: string,
+    phone: string | undefined,
+    whatsappLine: string,
+    selectedPlants: string[] = [],
+    email?: string,
+    acceptsOffers?: boolean,
+    notes?: string
+  ): CustomerLead {
     const leads = this.getLeads();
-    const existing = leads.find(l => (phone && l.phone === phone) || l.name.toLowerCase() === name.toLowerCase());
+    const existing = leads.find(l => (phone && l.phone === phone) || (email && l.email === email) || l.name.toLowerCase() === name.toLowerCase());
     const now = new Date().toISOString();
 
     let lead: CustomerLead;
     if (existing) {
       lead = {
         ...existing,
+        name: name || existing.name,
+        phone: phone || existing.phone,
+        email: email || existing.email,
+        acceptsOffers: acceptsOffers !== undefined ? acceptsOffers : existing.acceptsOffers,
         lastContact: now,
         queriesCount: (existing.queriesCount || 1) + 1,
         derivedToWhatsapp: true,
         whatsappLine,
-        selectedPlants: Array.from(new Set([...existing.selectedPlants, ...selectedPlants]))
+        selectedPlants: Array.from(new Set([...existing.selectedPlants, ...selectedPlants])),
+        notes: notes ? (existing.notes ? `${existing.notes} | ${notes}` : notes) : existing.notes
       };
       const updated = leads.map(l => l.id === existing.id ? lead : l);
       localStorage.setItem(STORAGE_KEYS.LEADS, JSON.stringify(updated));
@@ -215,12 +253,15 @@ export const dbService = {
         id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         name,
         phone,
+        email,
+        acceptsOffers: Boolean(acceptsOffers),
         firstContact: now,
         lastContact: now,
         queriesCount: 1,
         derivedToWhatsapp: true,
         whatsappLine,
-        selectedPlants
+        selectedPlants,
+        notes
       };
       localStorage.setItem(STORAGE_KEYS.LEADS, JSON.stringify([lead, ...leads]));
     }
@@ -232,8 +273,10 @@ export const dbService = {
         client.from('customers').insert({
           name: lead.name,
           phone: lead.phone,
+          email: lead.email,
+          accepts_offers: Boolean(lead.acceptsOffers),
           whatsapp_channel: lead.whatsappLine,
-          notes: `Interesado en: ${lead.selectedPlants.join(', ')}`
+          notes: `${lead.notes || ''} [Email: ${lead.email || 'N/A'}] (Plantas: ${lead.selectedPlants.join(', ')}) [Ofertas: ${lead.acceptsOffers ? 'SÍ' : 'NO'}]`.trim()
         })
       ).catch(() => {});
     }

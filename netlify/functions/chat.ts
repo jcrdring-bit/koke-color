@@ -1,9 +1,11 @@
-// Netlify Serverless Function para proxy seguro de DeepSeek con limitador de tasa (Rate Limiting)
-// Previene el agotamiento de cuota por bots y oculta la API Key del cliente
+// Netlify Serverless Function para proxy seguro de Antigravity (Google Gemini)
+// con control de tasa (Rate Limiting) y protección de API Key en el servidor
+
+import { GoogleGenAI } from '@google/genai';
 
 const ipRateLimits = new Map<string, { count: number; resetAt: number }>();
 
-const RATE_LIMIT_MAX = 20; // Máximo 20 consultas por minuto por IP
+const RATE_LIMIT_MAX = 30; // Máximo 30 consultas por minuto por IP
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // Ventana de 1 minuto
 
 export default async (req: Request) => {
@@ -49,7 +51,7 @@ export default async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { messages } = body || {};
+    const { messages, systemInstruction } = body || {};
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'Formato de mensajes inválido' }), {
@@ -58,46 +60,90 @@ export default async (req: Request) => {
       });
     }
 
-    // Limitar longitud del historial para evitar ataques de consumo de tokens excesivos
-    const sanitizedMessages = messages.slice(-10);
-
-    // La API Key se lee exclusivamente en el entorno del servidor
-    const apiKey = process.env.DEEPSEEK_API_KEY || process.env.VITE_DEEPSEEK_API_KEY;
+    // La API Key de Antigravity / Google Gemini se lee exclusivamente en el entorno del servidor
+    const apiKey =
+      process.env.GEMINI_API_KEY ||
+      process.env.ANTIGRAVITY_API_KEY ||
+      process.env.VITE_GEMINI_API_KEY ||
+      process.env.DEEPSEEK_API_KEY;
 
     if (!apiKey || apiKey.trim().length < 5) {
-      return new Response(JSON.stringify({ error: 'API Key de DeepSeek no configurada en el servidor' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          error: 'API Key de Antigravity / Gemini no configurada en el servidor (GEMINI_API_KEY).'
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    const dsResponse = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey.trim()}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: sanitizedMessages,
+    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+
+    // Extraer system prompt y formatear turnos de conversación
+    let systemText = systemInstruction || '';
+    const conversationTurns: { role: string; parts: { text: string }[] }[] = [];
+
+    // Limitar longitud del historial para evitar consumo de tokens excesivo
+    const sanitizedMessages = messages.slice(-10);
+
+    for (const msg of sanitizedMessages) {
+      if (msg.role === 'system') {
+        systemText = (systemText ? systemText + '\n\n' : '') + msg.content;
+      } else {
+        conversationTurns.push({
+          role: msg.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: msg.content }]
+        });
+      }
+    }
+
+    // Usar el modelo Gemini Flash de Antigravity
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: conversationTurns,
+      config: {
+        systemInstruction: systemText || undefined,
         temperature: 0.7,
-        max_tokens: 500
-      })
-    });
-
-    const data = await dsResponse.json();
-
-    return new Response(JSON.stringify(data), {
-      status: dsResponse.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate'
+        maxOutputTokens: 600
       }
     });
+
+    const replyText = response.text || '';
+
+    return new Response(
+      JSON.stringify({
+        provider: 'antigravity',
+        model: modelName,
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: replyText
+            }
+          }
+        ],
+        text: replyText
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      }
+    );
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || 'Error interno del servidor proxy' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error('Error en Antigravity / Gemini Chat Function:', err);
+    return new Response(
+      JSON.stringify({ error: err.message || 'Error al comunicarse con la IA de Antigravity' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   }
 };

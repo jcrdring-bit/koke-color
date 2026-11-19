@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.plants (
     watering_guide TEXT,
     light_guide TEXT,
     care_tips TEXT[] DEFAULT '{}',
+    color_variants JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -27,7 +28,9 @@ CREATE TABLE IF NOT EXISTS public.customers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     phone TEXT,
-    whatsapp_channel TEXT DEFAULT 'linea_1',
+    email TEXT,
+    accepts_offers BOOLEAN DEFAULT false,
+    whatsapp_channel TEXT DEFAULT 'linea_2',
     notes TEXT,
     interests TEXT[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT now()
@@ -63,7 +66,7 @@ CREATE TABLE IF NOT EXISTS public.settings (
 
 -- Valores iniciales de configuración
 INSERT INTO public.settings (key, value) VALUES 
-('store_info', '{"name": "Koke Color", "city": "José C. Paz, Buenos Aires", "alias_mp": "gringo.peque.mp", "whatsapp_1": "5491162362532", "whatsapp_2": "5491121848294"}'::jsonb)
+('store_info', '{"name": "Koke Color", "city": "José C. Paz, Buenos Aires", "alias_mp": "gringo.peque.mp", "whatsapp_1": "5491162362532", "whatsapp_2": "5491176092591"}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
 -- ============================================================

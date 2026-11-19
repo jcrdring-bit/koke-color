@@ -1,11 +1,11 @@
-import React from 'react';
-import { Sun, MapPin, ShoppingCart, Check, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sun, MapPin, ShoppingCart, Check, Eye, Sparkles } from 'lucide-react';
 import { Plant } from '../../types';
 
 interface ProductCardProps {
   plant: Plant;
   isSelected: boolean;
-  onToggleSelect: (plant: Plant) => void;
+  onToggleSelect: (plant: Plant, color?: string) => void;
   onOpenCare: (plant: Plant) => void;
 }
 
@@ -15,15 +15,56 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleSelect,
   onOpenCare,
 }) => {
+  const hasVariants = Boolean(plant.colorVariants && plant.colorVariants.length > 0);
+  const variants = plant.colorVariants || [];
+
+  // Índice del color actual (rotación automática cada 5 segundos)
+  const [activeColorIndex, setActiveColorIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (!hasVariants || isPaused) return;
+
+    const interval = setInterval(() => {
+      setActiveColorIndex((prev) => (prev + 1) % variants.length);
+    }, 5000); // Rota exactamente cada 5 segundos
+
+    return () => clearInterval(interval);
+  }, [hasVariants, variants.length, isPaused]);
+
+  const activeVariant = hasVariants ? variants[activeColorIndex] : null;
+  const currentImageUrl = activeVariant ? activeVariant.imageUrl : plant.imageUrl;
+  const currentColorName = activeVariant ? activeVariant.name : undefined;
+
+  const handleColorClick = (idx: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveColorIndex(idx);
+    setIsPaused(true);
+    // Reanudar rotación tras 10 segundos de inactividad
+    setTimeout(() => setIsPaused(false), 10000);
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleSelect(plant, currentColorName);
+  };
+
   return (
-    <article className="group bg-white rounded-3xl border border-surface-border/80 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
-      
+    <article
+      className="group bg-white rounded-3xl border border-surface-border/80 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
       {/* Top Image Container */}
-      <div className="relative aspect-[4/3] sm:aspect-square overflow-hidden bg-stone-100 cursor-pointer" onClick={() => onOpenCare(plant)}>
+      <div
+        className="relative aspect-[4/3] sm:aspect-square overflow-hidden bg-stone-100 cursor-pointer"
+        onClick={() => onOpenCare(plant)}
+      >
         <img
-          src={plant.imageUrl}
-          alt={plant.name}
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+          key={currentImageUrl}
+          src={currentImageUrl}
+          alt={`${plant.name} ${currentColorName ? `- Flor ${currentColorName}` : ''}`}
+          className="w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-700 ease-out animate-in fade-in"
           loading="lazy"
         />
 
@@ -31,6 +72,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="absolute top-3 right-3 bg-[#164e28]/90 backdrop-blur-xs text-white text-[11px] font-medium px-2.5 py-1 rounded-full shadow-xs">
           Koke Color · J.C. Paz
         </div>
+
+        {/* Indicador de color en la foto si tiene variantes */}
+        {hasVariants && activeVariant && (
+          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-xs text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-xs flex items-center gap-1.5 animate-in fade-in">
+            <span
+              className="w-2.5 h-2.5 rounded-full border border-white/60 shadow-xs"
+              style={{ backgroundColor: activeVariant.hex }}
+            />
+            <span>Flor {activeVariant.name}</span>
+          </div>
+        )}
 
         {/* Bottom Badges */}
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
@@ -58,7 +110,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div>
           {/* Header & Botanical Name */}
           <div className="mb-2">
-            <h3 
+            <h3
               onClick={() => onOpenCare(plant)}
               className="font-serif text-xl font-bold text-[#1C1917] hover:text-[#164e28] transition-colors cursor-pointer leading-tight"
             >
@@ -68,6 +120,44 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {plant.scientificName}
             </p>
           </div>
+
+          {/* Selector interactivo de colores para Kalanchoe */}
+          {hasVariants && (
+            <div className="mb-3.5 p-2 bg-[#FAF8F5] rounded-2xl border border-surface-border/60">
+              <div className="flex items-center justify-between text-[11px] font-medium text-stone-600 mb-1.5 px-1">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <span>Elige el color de flor:</span>
+                </span>
+                <span className="font-bold text-stone-900">{currentColorName}</span>
+              </div>
+
+              <div className="flex items-center justify-between gap-1 px-1">
+                {variants.map((v, idx) => {
+                  const isActive = idx === activeColorIndex;
+                  return (
+                    <button
+                      key={v.name}
+                      type="button"
+                      onClick={(e) => handleColorClick(idx, e)}
+                      className={`group/btn flex items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-semibold transition-all ${
+                        isActive
+                          ? 'bg-white shadow-xs ring-2 ring-[#164e28] text-stone-900 scale-105'
+                          : 'hover:bg-white/60 text-stone-600'
+                      }`}
+                      title={`Flor ${v.name} (cambia cada 5s)`}
+                    >
+                      <span
+                        className="w-3 h-3 rounded-full border border-stone-300 shrink-0"
+                        style={{ backgroundColor: v.hex }}
+                      />
+                      <span className="hidden sm:inline">{v.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Meta Tags: Origin & Light */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -96,34 +186,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Action Button */}
           {plant.inStock ? (
             <button
-              onClick={() => onToggleSelect(plant)}
+              onClick={handleActionClick}
               className={`p-3 rounded-full transition-all duration-200 shadow-xs flex items-center justify-center ${
                 isSelected
-                  ? 'bg-red-600 text-white hover:bg-red-700 scale-105 ring-2 ring-red-400/40'
-                  : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-200 shadow-xs'
+                  ? 'bg-stone-800 text-white hover:bg-black scale-105'
+                  : 'bg-red-600 text-white hover:bg-red-700 active:scale-95'
               }`}
-              title={isSelected ? 'Quitar del carrito' : 'Agregar al carrito'}
-              aria-label={isSelected ? 'Quitar del carrito' : 'Agregar al carrito'}
+              title={
+                hasVariants
+                  ? `Agregar Kalanchoe (Flor ${currentColorName}) al carrito`
+                  : isSelected
+                  ? 'Quitar de mi selección'
+                  : 'Agregar a mi selección'
+              }
             >
               {isSelected ? (
                 <Check className="w-5 h-5 stroke-[2.5]" />
               ) : (
-                <ShoppingCart className="w-5 h-5" />
+                <ShoppingCart className="w-5 h-5 stroke-[2.5]" />
               )}
             </button>
           ) : (
-            <button
-              disabled
-              className="p-3 rounded-full bg-stone-100 text-stone-400 cursor-not-allowed"
-              title="Agotado temporalmente"
-            >
-              <ShoppingCart className="w-5 h-5 opacity-40" />
-            </button>
+            <span className="text-xs text-[#78716C] italic">Sin stock</span>
           )}
         </div>
-
       </div>
-
     </article>
   );
 };

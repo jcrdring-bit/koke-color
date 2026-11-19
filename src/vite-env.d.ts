@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_MERCADOPAGO_ALIAS?: string;
   readonly VITE_MERCADOPAGO_CVU?: string;
   readonly VITE_MERCADOPAGO_QR_URL?: string;
+  readonly VITE_MERCADOPAGO_PUBLIC_KEY?: string;
+  readonly VITE_MP_PUBLIC_KEY?: string;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
 }

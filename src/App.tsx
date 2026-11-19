@@ -105,7 +105,7 @@ export const App: React.FC = () => {
         plant={catalog.careModalPlant}
         onClose={() => catalog.setCareModalPlant(null)}
         isSelected={catalog.careModalPlant ? cart.isSelected(catalog.careModalPlant.id) : false}
-        onToggleSelect={(p) => cart.toggleItem(p)}
+        onToggleSelect={(p, color) => cart.toggleItem(p, color)}
       />
 
       {/* 6. Barra Flotante de Carrito / Consulta */}
@@ -126,13 +126,14 @@ export const App: React.FC = () => {
         settings={settings}
       />
 
-      {/* 8. Modal de Cobro con Mercado Pago (Alias: gringo.peque.mp) */}
+      {/* 8. Modal de Cobro con Mercado Pago (Tarjeta, QR, Alias) */}
       <MercadoPagoModal
         isOpen={cart.isMercadoPagoModalOpen}
         onClose={() => cart.setIsMercadoPagoModalOpen(false)}
         total={cart.total}
         items={cart.items}
         settings={settings}
+        onClearCart={() => cart.clearCart()}
       />
 
       {/* 9. Reproductor Flotante de Música Ambiental Zen */}
@@ -141,7 +142,7 @@ export const App: React.FC = () => {
         onToggle={audio.toggle}
       />
 
-      {/* 10. Chatbot Inteligente con DeepSeek (KokeBot) */}
+      {/* 10. Chatbot Inteligente con IA de Antigravity (KokeBot) */}
       <DeepSeekChatbot
         isOpen={chat.isOpen}
         onToggle={() => chat.setIsOpen(!chat.isOpen)}

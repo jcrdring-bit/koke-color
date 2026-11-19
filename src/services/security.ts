@@ -76,7 +76,7 @@ export const securityService = {
    * Valida el PIN contra el endpoint seguro de Netlify (/api/admin-auth)
    * con fallback criptográfico local SHA-256 si está offline
    */
-  async verifyAdminLogin(pinInput: string, fallbackConfiguredPin: string = 'koke2026'): Promise<LoginResult> {
+  async verifyAdminLogin(pinInput: string, fallbackConfiguredPin: string = '1976piranaman'): Promise<LoginResult> {
     if (!pinInput || !pinInput.trim()) {
       return { success: false, message: 'Por favor ingresa tu clave o PIN.' };
     }

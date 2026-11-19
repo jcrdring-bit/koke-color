@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChatMessage, Plant, StoreSettings, ConversationLog } from '../types';
-import { deepseekService } from '../services/deepseek';
+import { antigravityService } from '../services/antigravity';
 import { dbService } from '../services/db';
 
 export function useChat(plants: Plant[], settings: StoreSettings) {
@@ -8,7 +8,7 @@ export function useChat(plants: Plant[], settings: StoreSettings) {
     {
       id: 'welcome',
       sender: 'bot',
-      content: '¡Hola! 🌿 Soy KokeBot, el asistente de Koke Color. ¿En qué puedo ayudarte hoy? Puedes consultarme sobre cuidados de las kokedamas, precios, stock disponible o cómo coordinar tu entrega por WhatsApp.',
+      content: '¡Hola! 🌿 Soy KokeBot, el asistente botánico de Koke Color con IA de Antigravity. ¿En qué puedo ayudarte hoy? Puedes consultarme sobre cuidados de las kokedamas, precios, stock disponible o cómo abonar con tarjeta y Mercado Pago.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -49,28 +49,50 @@ export function useChat(plants: Plant[], settings: StoreSettings) {
         .filter(m => m.sender === 'user' || m.sender === 'bot')
         .map(m => ({ sender: m.sender as 'user' | 'bot', content: m.content }));
 
-      const botReply = await deepseekService.sendMessage(content, history, plants, settings);
+      const rawReply = await antigravityService.sendMessage(content, history, plants, settings);
 
-      const isWhatsappIntent = content.toLowerCase().includes('comprar') || 
-                               content.toLowerCase().includes('whatsapp') ||
-                               content.toLowerCase().includes('pedido') ||
-                               botReply.toLowerCase().includes('whatsapp');
+      const hasWhatsappActionTag = rawReply.includes('[WHATSAPP_ACTION]');
+      const botReply = rawReply.replace(/\[WHATSAPP_ACTION\]/g, '').trim();
+
+      const isOutOfScopeOrUnknown = 
+        hasWhatsappActionTag ||
+        botReply.toLowerCase().includes('solo puedo responder') ||
+        botReply.toLowerCase().includes('no cuento con esa información') ||
+        botReply.toLowerCase().includes('no está en el catálogo') ||
+        botReply.toLowerCase().includes('no figura en') ||
+        botReply.toLowerCase().includes('no tengo esa información') ||
+        botReply.toLowerCase().includes('no dispongo de esa información') ||
+        botReply.toLowerCase().includes('no sé') ||
+        botReply.toLowerCase().includes('asesor humano') ||
+        botReply.toLowerCase().includes('equipo del taller');
+
+      const isPurchaseOrContactIntent =
+        content.toLowerCase().includes('comprar') || 
+        content.toLowerCase().includes('whatsapp') ||
+        content.toLowerCase().includes('pedido') ||
+        content.toLowerCase().includes('humano') ||
+        content.toLowerCase().includes('persona') ||
+        content.toLowerCase().includes('contacto') ||
+        botReply.toLowerCase().includes('whatsapp');
+
+      const shouldShowWhatsappButton = isOutOfScopeOrUnknown || isPurchaseOrContactIntent;
 
       const botMsg: ChatMessage = {
         id: `msg_b_${Date.now()}`,
         sender: 'bot',
         content: botReply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        action: isWhatsappIntent ? {
+        action: shouldShowWhatsappButton ? {
           type: 'whatsapp',
-          label: 'Contactar por WhatsApp ahora'
+          label: isOutOfScopeOrUnknown ? 'Consultar esta duda por WhatsApp' : 'Contactar por WhatsApp ahora',
+          payload: { query: content }
         } : undefined
       };
 
       setMessages(prev => [...prev, botMsg]);
 
       // Si el usuario compartió su nombre o pidió WhatsApp, registrar en el CRM
-      if (userLeadName || isWhatsappIntent) {
+      if (userLeadName || shouldShowWhatsappButton) {
         dbService.registerLead(
           userLeadName || 'Interesado Web',
           undefined,

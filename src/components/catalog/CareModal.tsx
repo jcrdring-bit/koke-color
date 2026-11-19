@@ -1,12 +1,12 @@
-import React from 'react';
-import { X, Droplets, Sun, CheckCircle2, ShoppingCart, MapPin, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Droplets, Sun, CheckCircle2, ShoppingCart, MapPin, Check, Sparkles } from 'lucide-react';
 import { Plant } from '../../types';
 
 interface CareModalProps {
   plant: Plant | null;
   onClose: () => void;
   isSelected: boolean;
-  onToggleSelect: (plant: Plant) => void;
+  onToggleSelect: (plant: Plant, color?: string) => void;
 }
 
 export const CareModal: React.FC<CareModalProps> = ({
@@ -15,24 +15,51 @@ export const CareModal: React.FC<CareModalProps> = ({
   isSelected,
   onToggleSelect,
 }) => {
+  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const hasVariants = Boolean(plant?.colorVariants && plant.colorVariants.length > 0);
+  const variants = plant?.colorVariants || [];
+
+  useEffect(() => {
+    if (!hasVariants || isPaused) return;
+
+    const interval = setInterval(() => {
+      setSelectedColorIndex((prev) => (prev + 1) % variants.length);
+    }, 5000); // 5 segundos
+
+    return () => clearInterval(interval);
+  }, [hasVariants, variants.length, isPaused]);
+
   if (!plant) return null;
+
+  const currentVariant = hasVariants ? variants[selectedColorIndex] : null;
+  const currentImageUrl = currentVariant ? currentVariant.imageUrl : plant.imageUrl;
+  const currentColorName = currentVariant ? currentVariant.name : undefined;
+
+  const handleColorClick = (idx: number) => {
+    setSelectedColorIndex(idx);
+    setIsPaused(true);
+    setTimeout(() => setIsPaused(false), 10000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-      
       <div 
         className="bg-white w-full max-w-2xl rounded-4xl shadow-2xl overflow-hidden border border-surface-border flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
       >
-        
         {/* Modal Header Image */}
         <div className="relative aspect-[16/9] sm:aspect-[21/9] bg-stone-100 overflow-hidden">
           <img
-            src={plant.imageUrl}
-            alt={plant.name}
-            className="w-full h-full object-cover"
+            key={currentImageUrl}
+            src={currentImageUrl}
+            alt={`${plant.name} ${currentColorName ? `- Flor ${currentColorName}` : ''}`}
+            className="w-full h-full object-cover transition-all duration-700 animate-in fade-in"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
           
           <button
             onClick={onClose}
@@ -41,49 +68,87 @@ export const CareModal: React.FC<CareModalProps> = ({
             <X className="w-5 h-5" />
           </button>
 
-          <div className="absolute bottom-4 left-6 right-6 text-white">
-            <span className="text-xs uppercase tracking-wider text-emerald-300 font-semibold">
-              Guía botánica de cuidados
-            </span>
-            <h3 className="font-serif text-2xl sm:text-3xl font-bold leading-tight">
-              {plant.name}
-            </h3>
-            <p className="text-xs italic text-stone-200">
-              {plant.scientificName}
-            </p>
+          {/* Badges en la foto */}
+          <div className="absolute bottom-4 left-6 right-6 text-white flex items-end justify-between">
+            <div>
+              <span className="text-xs uppercase tracking-wider text-emerald-300 font-semibold flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                Guía botánica de cuidados
+              </span>
+              <h3 className="font-serif text-2xl sm:text-3xl font-bold leading-tight">
+                {plant.name}
+              </h3>
+              <p className="text-xs italic text-stone-200">
+                {plant.scientificName}
+              </p>
+            </div>
+
+            {hasVariants && currentVariant && (
+              <span className="bg-black/60 backdrop-blur-xs px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-white"
+                  style={{ backgroundColor: currentVariant.hex }}
+                />
+                <span>Flor {currentVariant.name}</span>
+              </span>
+            )}
           </div>
         </div>
 
         {/* Modal Content Scrollable */}
-        <div className="p-6 overflow-y-auto space-y-6">
-          
+        <div className="p-6 overflow-y-auto space-y-5">
+          {/* Selector de colores en el modal para Kalanchoe */}
+          {hasVariants && (
+            <div className="p-3 bg-[#FAF8F5] rounded-2xl border border-surface-border/60 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-stone-700">
+                <span>Variedad de flor (cambia cada 5 seg):</span>
+                <span className="font-bold text-[#164e28]">Flor {currentColorName}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {variants.map((v, idx) => {
+                  const isActive = idx === selectedColorIndex;
+                  return (
+                    <button
+                      key={v.name}
+                      type="button"
+                      onClick={() => handleColorClick(idx)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                        isActive
+                          ? 'bg-white shadow-xs ring-2 ring-[#164e28] text-stone-900 scale-105'
+                          : 'bg-white/70 hover:bg-white text-stone-600 border border-surface-border/60'
+                      }`}
+                    >
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-stone-300"
+                        style={{ backgroundColor: v.hex }}
+                      />
+                      <span>{v.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Quick Info Badges */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-surface-border">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-xs text-[#78716C] bg-[#FAF8F5] px-3 py-1 rounded-full border border-surface-border">
-                <MapPin className="w-3.5 h-3.5 text-[#164e28]" />
-                <span>Origen: {plant.origin}</span>
-              </span>
-            </div>
-            <div>
-              <span className="font-serif text-2xl font-bold text-[#1C1917]">
-                $ {plant.price.toLocaleString('es-AR')}
-              </span>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F5] border border-surface-border text-xs text-[#78716C]">
+              <MapPin className="w-3.5 h-3.5 text-[#164e28]" />
+              <span>Origen: {plant.origin}</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-xs text-amber-800">
+              <Sun className="w-3.5 h-3.5 text-amber-600" />
+              <span>{plant.light}</span>
+            </span>
           </div>
 
           {/* Description */}
-          <div>
-            <h4 className="text-xs uppercase tracking-wider font-semibold text-[#78716C] mb-2">
-              Sobre esta kokedama
-            </h4>
-            <p className="text-sm text-[#1C1917] leading-relaxed">
-              {plant.description}
-            </p>
-          </div>
+          <p className="text-xs text-stone-600 leading-relaxed">
+            {plant.description}
+          </p>
 
-          {/* Two Quick Stat Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Care Guidelines Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 flex items-start gap-3">
               <div className="p-2 rounded-xl bg-sky-100 text-sky-700 mt-0.5">
                 <Droplets className="w-5 h-5" />
@@ -127,7 +192,6 @@ export const CareModal: React.FC<CareModalProps> = ({
               ))}
             </div>
           </div>
-
         </div>
 
         {/* Modal Footer */}
@@ -142,7 +206,7 @@ export const CareModal: React.FC<CareModalProps> = ({
           {plant.inStock ? (
             <button
               onClick={() => {
-                onToggleSelect(plant);
+                onToggleSelect(plant, currentColorName);
               }}
               className={`px-6 py-2.5 rounded-full text-xs font-semibold flex items-center gap-2 transition-all ${
                 isSelected
@@ -158,7 +222,7 @@ export const CareModal: React.FC<CareModalProps> = ({
               ) : (
                 <>
                   <ShoppingCart className="w-4 h-4" />
-                  <span>Agregar al carrito</span>
+                  <span>Agregar {currentColorName ? `(Flor ${currentColorName})` : ''} al carrito</span>
                 </>
               )}
             </button>
@@ -168,9 +232,7 @@ export const CareModal: React.FC<CareModalProps> = ({
             </div>
           )}
         </div>
-
       </div>
-
     </div>
   );
 };

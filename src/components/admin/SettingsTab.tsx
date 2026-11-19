@@ -131,6 +131,22 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
               Si lo dejas vacío, genera el QR dinámico
             </p>
           </div>
+
+          <div className="sm:col-span-3">
+            <label className="block text-[#78716C] mb-1 font-medium">
+              Public Key de Mercado Pago (para cobros con Tarjeta de Crédito):
+            </label>
+            <input
+              type="text"
+              placeholder="TEST-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx o APP_USR-..."
+              value={formData.mercadopagoPublicKey || ''}
+              onChange={(e) => setFormData({ ...formData, mercadopagoPublicKey: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl bg-white border border-surface-border font-mono text-xs text-sky-950 font-semibold"
+            />
+            <p className="text-[11px] text-[#78716C] mt-1">
+              Clave pública de desarrollador de Mercado Pago (Public Key). También se puede configurar en Netlify / .env.local como VITE_MP_PUBLIC_KEY.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -169,23 +185,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
         </div>
       </div>
 
-      {/* DeepSeek API Key */}
+      {/* Antigravity / Gemini AI Key */}
       <div className="bg-[#FAF8F5] p-4 rounded-2xl border border-surface-border space-y-3">
         <div className="flex items-center gap-2">
           <Key className="w-4 h-4 text-[#164e28]" />
           <h4 className="font-bold text-[#1C1917] text-sm">
-            Inteligencia Artificial (DeepSeek API Key)
+            Inteligencia Artificial del Chatbot (Antigravity / Gemini)
           </h4>
         </div>
 
         <div>
           <label className="block text-[#78716C] mb-1 font-medium">
-            Clave de API de DeepSeek (sk-...):
+            Clave de API de Antigravity / Gemini (AI Studio):
           </label>
           <div className="flex gap-2 max-w-md">
             <input
               type={showKey ? 'text' : 'password'}
-              placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+              placeholder="AIzaSy..."
               value={formData.deepseekApiKey}
               onChange={(e) => setFormData({ ...formData, deepseekApiKey: e.target.value })}
               className="flex-1 px-3 py-2 rounded-xl bg-white border border-surface-border font-mono text-xs"
@@ -199,8 +215,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
             </button>
           </div>
           <p className="text-[11px] text-[#78716C] mt-1.5 leading-relaxed">
-            Se procesa exclusivamente en el backend seguro de Netlify (<code>DEEPSEEK_API_KEY</code>).
-            Si no colocas ninguna, KokeBot continuará funcionando de todas formas con su motor inteligente local.
+            Se procesa de forma protegida en el backend de Netlify (<code>GEMINI_API_KEY</code>).
+            Si no colocas ninguna, KokeBot responderá con su motor botánico inteligente local de contingencia.
           </p>
         </div>
       </div>
