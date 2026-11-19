@@ -106,5 +106,47 @@ export const mercadopagoService = {
         error: err?.message || 'Error de red al conectar con el servidor.'
       };
     }
+  },
+
+  /**
+   * Crea una preferencia para Mercado Pago Checkout Pro (Opción 1)
+   */
+  async createCheckoutPreference(
+    items: Array<{ plant?: any; name?: string; price?: number; quantity: number; selectedColor?: string }>,
+    originUrl?: string
+  ): Promise<{ success: boolean; initPoint?: string; id?: string; error?: string }> {
+    try {
+      const response = await fetch('/api/create-preference', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          items,
+          originUrl: originUrl || window.location.origin
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'No se pudo generar la preferencia de pago en Mercado Pago.'
+        };
+      }
+
+      return {
+        success: true,
+        initPoint: data.init_point || data.sandbox_init_point,
+        id: data.id
+      };
+    } catch (err: any) {
+      console.error('Error al conectar con /api/create-preference:', err);
+      return {
+        success: false,
+        error: err?.message || 'Error de conexión al generar el pago con Mercado Pago.'
+      };
+    }
   }
 };

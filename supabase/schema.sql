@@ -64,6 +64,17 @@ CREATE TABLE IF NOT EXISTS public.settings (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Migraciones idempotentes para bases de datos ya existentes
+ALTER TABLE public.plants ADD COLUMN IF NOT EXISTS color_variants JSONB DEFAULT '[]';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS accepts_offers BOOLEAN DEFAULT false;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS whatsapp_channel TEXT DEFAULT 'linea_2';
+
+-- Índices para optimización de consultas
+CREATE INDEX IF NOT EXISTS idx_customers_email ON public.customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON public.customers(phone);
+CREATE INDEX IF NOT EXISTS idx_conversations_session ON public.conversations(session_id);
+
 -- Valores iniciales de configuración
 INSERT INTO public.settings (key, value) VALUES 
 ('store_info', '{"name": "Koke Color", "city": "José C. Paz, Buenos Aires", "alias_mp": "gringo.peque.mp", "whatsapp_1": "5491162362532", "whatsapp_2": "5491176092591"}'::jsonb)

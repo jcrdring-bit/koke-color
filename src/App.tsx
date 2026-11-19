@@ -6,6 +6,7 @@ import { useChat } from './hooks/useChat';
 import { useAuth } from './hooks/useAuth';
 import { dbService } from './services/db';
 import { StoreSettings } from './types';
+import { PaymentProcessResult } from './services/mercadopago';
 
 // Components
 import { Header } from './components/layout/Header';
@@ -23,6 +24,7 @@ import { Footer } from './components/layout/Footer';
 
 export const App: React.FC = () => {
   const [settings, setSettings] = useState<StoreSettings>(() => dbService.getSettings());
+  const [initialPaymentSuccess, setInitialPaymentSuccess] = useState<PaymentProcessResult | null>(null);
 
   // Modular Hooks
   const catalog = useCatalog();
@@ -30,6 +32,24 @@ export const App: React.FC = () => {
   const audio = useAudio('/musica-relax.mp3');
   const chat = useChat(catalog.plants, settings);
   const auth = useAuth();
+
+  useEffect(() => {
+    // Detectar retorno de pago aprobado desde Mercado Pago Checkout Pro (Opción 1)
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status') || params.get('collection_status');
+    const paymentId = params.get('payment_id') || params.get('collection_id');
+
+    if (status === 'approved' && paymentId) {
+      window.history.replaceState({}, '', window.location.pathname);
+      setInitialPaymentSuccess({
+        success: true,
+        id: paymentId,
+        status: 'approved',
+        message: '¡Tu pago en Mercado Pago ha sido aprobado con éxito!'
+      });
+      cart.setIsMercadoPagoModalOpen(true);
+    }
+  }, []);
 
   const categories = ['Todas', 'Florales', 'Colgantes', 'Sombra', 'Color'];
 
@@ -129,11 +149,15 @@ export const App: React.FC = () => {
       {/* 8. Modal de Cobro con Mercado Pago (Tarjeta, QR, Alias) */}
       <MercadoPagoModal
         isOpen={cart.isMercadoPagoModalOpen}
-        onClose={() => cart.setIsMercadoPagoModalOpen(false)}
+        onClose={() => {
+          setInitialPaymentSuccess(null);
+          cart.setIsMercadoPagoModalOpen(false);
+        }}
         total={cart.total}
         items={cart.items}
         settings={settings}
         onClearCart={() => cart.clearCart()}
+        initialPaymentSuccess={initialPaymentSuccess}
       />
 
       {/* 9. Reproductor Flotante de Música Ambiental Zen */}

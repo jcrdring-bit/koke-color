@@ -136,7 +136,7 @@ export const ConsultationDrawer: React.FC<ConsultationDrawerProps> = ({
                 className="w-full py-3 px-4 rounded-full bg-[#009EE3] hover:bg-[#0089C7] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all hover:scale-[1.01]"
               >
                 <CreditCard className="w-4 h-4" />
-                <span>Pagar con Mercado Pago (Alias)</span>
+                <span>Pagar con Mercado Pago (Tarjetas, QR, Alias)</span>
               </button>
 
               {/* WhatsApp Inquiry Options */}

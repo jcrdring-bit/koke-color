@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Copy,
@@ -15,7 +15,10 @@ import {
   Phone,
   Mail,
   Gift,
-  ArrowRight
+  ArrowRight,
+  Lock,
+  ChevronRight,
+  Layers
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CartItem, StoreSettings } from '../../types';
@@ -31,6 +34,7 @@ interface MercadoPagoModalProps {
   items: CartItem[];
   settings: StoreSettings;
   onClearCart?: () => void;
+  initialPaymentSuccess?: PaymentProcessResult | null;
 }
 
 export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
@@ -39,12 +43,18 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
   total,
   items,
   settings,
-  onClearCart
+  onClearCart,
+  initialPaymentSuccess
 }) => {
   const [activeTab, setActiveTab] = useState<'card' | 'qr' | 'alias'>('card');
   const [copiedAlias, setCopiedAlias] = useState(false);
   const [copiedCvu, setCopiedCvu] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState<PaymentProcessResult | null>(null);
+
+  // Estado para Checkout Pro (Opción 1)
+  const [isLoadingCheckoutPro, setIsLoadingCheckoutPro] = useState(false);
+  const [checkoutProError, setCheckoutProError] = useState<string | null>(null);
+  const [showEmbeddedForm, setShowEmbeddedForm] = useState(false);
 
   // Guardar copia local de items y total para no perderlos si se limpia el carrito en checkout exitoso
   const [purchasedItems, setPurchasedItems] = useState<CartItem[]>([]);
@@ -57,6 +67,22 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
   const [acceptsOffers, setAcceptsOffers] = useState(true);
   const [isContactSaved, setIsContactSaved] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialPaymentSuccess) {
+      setPaymentSuccessData(initialPaymentSuccess);
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {
+        console.warn('Confetti error:', e);
+      }
+      if (onClearCart) onClearCart();
+    }
+  }, [initialPaymentSuccess]);
 
   if (!isOpen) return null;
 
@@ -83,6 +109,33 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
     if (success) {
       setCopiedCvu(true);
       setTimeout(() => setCopiedCvu(false), 2500);
+    }
+  };
+
+  // Manejar el flujo de pago con Checkout Pro (Opción 1)
+  const handlePayWithCheckoutPro = async () => {
+    setIsLoadingCheckoutPro(true);
+    setCheckoutProError(null);
+
+    try {
+      const result = await mercadopagoService.createCheckoutPreference(
+        currentItems,
+        window.location.origin
+      );
+
+      if (result.success && result.initPoint) {
+        // Redirigir a la pasarela oficial y segura de Mercado Pago
+        window.location.href = result.initPoint;
+      } else {
+        setCheckoutProError(
+          result.error ||
+            'No se pudo conectar con Mercado Pago. Asegúrate de tener configurado tu MP_ACCESS_TOKEN.'
+        );
+      }
+    } catch (err: any) {
+      setCheckoutProError(err?.message || 'Error al conectar con Mercado Pago.');
+    } finally {
+      setIsLoadingCheckoutPro(false);
     }
   };
 
@@ -143,7 +196,6 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
   };
 
   const handleOpenWhatsAppPostPayment = () => {
-    // Si aún no guardó los datos pero los completó, los guardamos antes de abrir WhatsApp
     if (!isContactSaved) {
       const saved = saveLeadData();
       if (!saved) return;
@@ -177,7 +229,6 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
   };
 
   const handleOpenTransferWhatsApp = () => {
-    // Si completó sus datos en la pestaña de transferencia o QR, los registramos
     if (customerName.trim() && customerPhone.trim()) {
       saveLeadData(`Transferencia o QR MP ($ ${currentTotal.toLocaleString('es-AR')})`);
     }
@@ -225,7 +276,7 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
                 Pagar con Mercado Pago
               </h3>
               <p className="text-xs text-sky-100">
-                Tarjeta de Crédito, Débito, QR o Transferencia
+                Tarjetas en cuotas, QR o Transferencia
               </p>
             </div>
           </div>
@@ -437,7 +488,7 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
                 }`}
               >
                 <CreditCard className="w-4 h-4 text-[#009EE3]" />
-                <span>Tarjeta</span>
+                <span>Tarjeta (Opción 1)</span>
               </button>
 
               <button
@@ -477,48 +528,122 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
                 </span>
               </div>
 
-              {/* VISTA 1: TARJETA DE CRÉDITO / DÉBITO */}
+              {/* ========================================================
+                  VISTA 1: TARJETA DE CRÉDITO - OPCIÓN 1 (CHECKOUT PRO)
+                  ======================================================== */}
               {activeTab === 'card' && (
                 <div className="space-y-4 animate-in fade-in duration-150">
-                  {publicKey ? (
-                    <CardPaymentForm
-                      total={total}
-                      items={items}
-                      publicKey={publicKey}
-                      onPaymentSuccess={handlePaymentSuccess}
-                      onPaymentError={(err) => console.log('Error de pago:', err)}
-                    />
-                  ) : (
-                    <div className="p-5 bg-amber-50/70 border border-amber-200 rounded-3xl space-y-3 text-xs text-amber-900">
-                      <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
-                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Configuración de Tarjetas de Mercado Pago</span>
-                      </div>
-                      <p className="leading-relaxed text-amber-950">
-                        Para habilitar el cobro seguro con tarjeta en tu tienda, necesitas ingresar tu <strong>Public Key</strong> de Mercado Pago.
-                      </p>
-                      <div className="bg-white/80 p-3 rounded-2xl border border-amber-200/80 space-y-1.5 text-[11px]">
-                        <p className="font-semibold text-stone-800">¿Cómo activarlo?</p>
-                        <p>1. Ingresa a <a href="https://www.mercadopago.com.ar/developers" target="_blank" rel="noopener noreferrer" className="text-[#009EE3] underline font-semibold">Mercado Pago Developers</a>.</p>
-                        <p>2. Copia tu <strong>Public Key</strong> (ej: <code className="font-mono bg-stone-100 px-1 py-0.5 rounded">TEST-xxxx</code> o <code className="font-mono bg-stone-100 px-1 py-0.5 rounded">APP_USR-xxxx</code>).</p>
-                        <p>3. Pégala en el <strong>Panel de Administrador &gt; Ajustes</strong> de tu web o configúrala en <code className="font-mono bg-stone-100 px-1 py-0.5 rounded">.env.local</code> como <code className="font-mono bg-stone-100 px-1 py-0.5 rounded">VITE_MP_PUBLIC_KEY</code>.</p>
-                      </div>
-                      <div className="text-[11px] text-stone-600">
-                        <span>Mientras tanto, también puedes recibir pagos inmediatamente mediante </span>
+                  {!showEmbeddedForm ? (
+                    <div className="space-y-3.5">
+                      {/* Banner Informativo Checkout Pro */}
+                      <div className="bg-sky-50/70 border border-sky-200/80 rounded-3xl p-4 sm:p-5 text-left space-y-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-2xl bg-[#009EE3] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <CreditCard className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-sky-950">
+                              Checkout Pro de Mercado Pago (Opción 1)
+                            </h4>
+                            <p className="text-[11px] text-sky-700">
+                              Pago seguro con tarjetas de crédito en cuotas y débito
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Beneficios de Checkout Pro */}
+                        <div className="bg-white/90 p-3 rounded-2xl border border-sky-100 space-y-2 text-xs text-stone-700">
+                          <div className="flex items-start gap-2">
+                            <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Todas las tarjetas:</strong> Visa, Mastercard, American Express, Cabal, Tarjeta Naranja y débito.
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Hasta 12 cuotas:</strong> Con las promociones bancarias vigentes de Mercado Pago.
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Seguridad oficial:</strong> Encriptación bancaria PCI-DSS sin exponer tus datos.
+                            </span>
+                          </div>
+                        </div>
+
+                        {checkoutProError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-xs space-y-1">
+                            <div className="flex items-center gap-1.5 font-bold">
+                              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                              <span>Aviso de configuración</span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed">{checkoutProError}</p>
+                          </div>
+                        )}
+
+                        {/* Botón Principal para Checkout Pro */}
                         <button
-                          onClick={() => setActiveTab('alias')}
-                          className="font-bold text-[#009EE3] underline"
+                          onClick={handlePayWithCheckoutPro}
+                          disabled={isLoadingCheckoutPro}
+                          className="w-full py-4 px-5 rounded-2xl bg-[#009EE3] hover:bg-[#0089C7] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg transition-all transform active:scale-98 disabled:opacity-70 cursor-pointer"
                         >
-                          Alias / CVU
+                          <CreditCard className="w-5 h-5 shrink-0" />
+                          <span>
+                            {isLoadingCheckoutPro
+                              ? 'Conectando con Mercado Pago...'
+                              : `Pagar $ ${total.toLocaleString('es-AR')} con Tarjeta`}
+                          </span>
+                          <ArrowRight className="w-5 h-5 shrink-0" />
                         </button>
-                        <span> o </span>
-                        <button
-                          onClick={() => setActiveTab('qr')}
-                          className="font-bold text-[#009EE3] underline"
-                        >
-                          Código QR
-                        </button>.
                       </div>
+
+                      {/* Opción secundaria para alternar al formulario embebido si se desea */}
+                      <div className="text-center pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowEmbeddedForm(true)}
+                          className="text-[11px] text-stone-500 hover:text-stone-800 underline font-medium"
+                        >
+                          ¿Prefieres escribir tu tarjeta aquí sin salir? (Opción 2: Formulario Embebido)
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Formulario Embebido de Tarjeta (Opción 2) alternativo */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between pb-1 border-b border-stone-200">
+                        <span className="text-xs font-bold text-stone-800">
+                          Formulario de Tarjeta Embebido
+                        </span>
+                        <button
+                          onClick={() => setShowEmbeddedForm(false)}
+                          className="text-xs text-[#009EE3] hover:underline font-semibold"
+                        >
+                          ← Volver a Opción 1 (Checkout Pro)
+                        </button>
+                      </div>
+
+                      {publicKey ? (
+                        <CardPaymentForm
+                          total={total}
+                          items={items}
+                          publicKey={publicKey}
+                          onPaymentSuccess={handlePaymentSuccess}
+                          onPaymentError={(err) => console.log('Error de pago:', err)}
+                        />
+                      ) : (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-2">
+                          <p className="font-semibold">Requiere VITE_MP_PUBLIC_KEY en .env.local.</p>
+                          <button
+                            onClick={() => setShowEmbeddedForm(false)}
+                            className="font-bold text-[#009EE3] underline block"
+                          >
+                            Usar Opción 1 (Checkout Pro con todas las tarjetas)
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

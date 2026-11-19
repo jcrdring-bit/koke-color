@@ -15,6 +15,12 @@
   to = "/.netlify/functions/admin-auth"
   status = 200
 
+# Endpoint seguro para crear preferencia Checkout Pro (Mercado Pago Opción 1)
+[[redirects]]
+  from = "/api/create-preference"
+  to = "/.netlify/functions/create-preference"
+  status = 200
+
 # Endpoint seguro para procesar pagos con tarjeta (Mercado Pago)
 [[redirects]]
   from = "/api/process-payment"
