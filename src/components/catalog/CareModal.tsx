@@ -17,19 +17,20 @@ export const CareModal: React.FC<CareModalProps> = ({
 }) => {
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [hasManuallySelected, setHasManuallySelected] = useState(false);
 
   const hasVariants = Boolean(plant?.colorVariants && plant.colorVariants.length > 0);
   const variants = plant?.colorVariants || [];
 
   useEffect(() => {
-    if (!hasVariants || isPaused) return;
+    if (!hasVariants || isPaused || hasManuallySelected) return;
 
     const interval = setInterval(() => {
       setSelectedColorIndex((prev) => (prev + 1) % variants.length);
     }, 5000); // 5 segundos
 
     return () => clearInterval(interval);
-  }, [hasVariants, variants.length, isPaused]);
+  }, [hasVariants, variants.length, isPaused, hasManuallySelected]);
 
   if (!plant) return null;
 
@@ -39,8 +40,7 @@ export const CareModal: React.FC<CareModalProps> = ({
 
   const handleColorClick = (idx: number) => {
     setSelectedColorIndex(idx);
-    setIsPaused(true);
-    setTimeout(() => setIsPaused(false), 10000);
+    setHasManuallySelected(true);
   };
 
   return (
@@ -112,14 +112,14 @@ export const CareModal: React.FC<CareModalProps> = ({
                       key={v.name}
                       type="button"
                       onClick={() => handleColorClick(idx)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
                         isActive
-                          ? 'bg-white shadow-xs ring-2 ring-[#164e28] text-stone-900 scale-105'
-                          : 'bg-white/70 hover:bg-white text-stone-600 border border-surface-border/60'
+                          ? 'bg-[#164e28] text-white border-[#164e28] shadow-xs scale-105 ring-2 ring-emerald-300/60'
+                          : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
                       }`}
                     >
                       <span
-                        className="w-3.5 h-3.5 rounded-full border border-stone-300"
+                        className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0"
                         style={{ backgroundColor: v.hex }}
                       />
                       <span>{v.name}</span>

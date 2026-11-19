@@ -43,23 +43,21 @@ export const dbService = {
             }
           }
 
-          // Asegurar que Kalanchoe tenga las 5 variantes de color actualizadas
+          // Asegurar que Kalanchoe y Begonia tengan las variantes de color actualizadas
           const kalanchoeIdx = parsed.findIndex(p => p.id === 'kalanchoe');
           const initialKalanchoe = INITIAL_PLANTS.find(p => p.id === 'kalanchoe');
-          if (kalanchoeIdx >= 0 && initialKalanchoe && (!parsed[kalanchoeIdx].colorVariants || parsed[kalanchoeIdx].colorVariants?.length !== 5)) {
+          if (kalanchoeIdx >= 0 && initialKalanchoe) {
             parsed[kalanchoeIdx].colorVariants = initialKalanchoe.colorVariants;
             parsed[kalanchoeIdx].imageUrl = initialKalanchoe.imageUrl;
-            localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(parsed));
           }
 
-          // Asegurar que Begonia tenga las 3 variantes de color actualizadas
           const begoniaIdx = parsed.findIndex(p => p.id === 'begonia');
           const initialBegonia = INITIAL_PLANTS.find(p => p.id === 'begonia');
-          if (begoniaIdx >= 0 && initialBegonia && (!parsed[begoniaIdx].colorVariants || parsed[begoniaIdx].colorVariants?.length !== 3)) {
+          if (begoniaIdx >= 0 && initialBegonia) {
             parsed[begoniaIdx].colorVariants = initialBegonia.colorVariants;
             parsed[begoniaIdx].imageUrl = initialBegonia.imageUrl;
-            localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(parsed));
           }
+          localStorage.setItem(STORAGE_KEYS.PLANTS, JSON.stringify(parsed));
           return parsed;
         }
       }

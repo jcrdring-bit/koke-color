@@ -18,19 +18,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const hasVariants = Boolean(plant.colorVariants && plant.colorVariants.length > 0);
   const variants = plant.colorVariants || [];
 
-  // Índice del color actual (rotación automática cada 5 segundos)
+  // Índice del color actual (rotación automática cada 5 segundos si no se eligió manualmente)
   const [activeColorIndex, setActiveColorIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [hasManuallySelected, setHasManuallySelected] = useState(false);
 
   useEffect(() => {
-    if (!hasVariants || isPaused) return;
+    if (!hasVariants || isPaused || hasManuallySelected) return;
 
     const interval = setInterval(() => {
       setActiveColorIndex((prev) => (prev + 1) % variants.length);
     }, 5000); // Rota exactamente cada 5 segundos
 
     return () => clearInterval(interval);
-  }, [hasVariants, variants.length, isPaused]);
+  }, [hasVariants, variants.length, isPaused, hasManuallySelected]);
 
   const activeVariant = hasVariants ? variants[activeColorIndex] : null;
   const currentImageUrl = activeVariant ? activeVariant.imageUrl : plant.imageUrl;
@@ -39,9 +40,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const handleColorClick = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveColorIndex(idx);
-    setIsPaused(true);
-    // Reanudar rotación tras 10 segundos de inactividad
-    setTimeout(() => setIsPaused(false), 10000);
+    setHasManuallySelected(true); // Bloquear en el color elegido por el usuario para comprar
   };
 
   const handleActionClick = (e: React.MouseEvent) => {
@@ -121,18 +120,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </p>
           </div>
 
-          {/* Selector interactivo de colores para Kalanchoe */}
+          {/* Selector interactivo de colores de flor */}
           {hasVariants && (
-            <div className="mb-3.5 p-2 bg-[#FAF8F5] rounded-2xl border border-surface-border/60">
-              <div className="flex items-center justify-between text-[11px] font-medium text-stone-600 mb-1.5 px-1">
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>Elige el color de flor:</span>
+            <div className="mb-3.5 p-2.5 bg-[#FAF8F5] rounded-2xl border border-surface-border">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-stone-700 mb-2 px-0.5">
+                <span className="flex items-center gap-1.5 text-stone-800">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Color de flor:</span>
                 </span>
-                <span className="font-bold text-stone-900">{currentColorName}</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-white text-[#164e28] border border-emerald-200 shadow-2xs">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full border border-black/20"
+                    style={{ backgroundColor: activeVariant?.hex }}
+                  />
+                  <span>{currentColorName}</span>
+                </span>
               </div>
 
-              <div className="flex items-center justify-between gap-1 px-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {variants.map((v, idx) => {
                   const isActive = idx === activeColorIndex;
                   return (
@@ -140,18 +145,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                       key={v.name}
                       type="button"
                       onClick={(e) => handleColorClick(idx, e)}
-                      className={`group/btn flex items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-semibold transition-all ${
+                      className={`flex items-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all border ${
                         isActive
-                          ? 'bg-white shadow-xs ring-2 ring-[#164e28] text-stone-900 scale-105'
-                          : 'hover:bg-white/60 text-stone-600'
+                          ? 'bg-[#164e28] text-white border-[#164e28] shadow-xs scale-105 ring-2 ring-emerald-300/60'
+                          : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200/90 hover:border-stone-400'
                       }`}
-                      title={`Flor ${v.name} (cambia cada 5s)`}
+                      title={`Seleccionar flor ${v.name}`}
                     >
                       <span
-                        className="w-3 h-3 rounded-full border border-stone-300 shrink-0"
+                        className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-2xs"
                         style={{ backgroundColor: v.hex }}
                       />
-                      <span className="hidden sm:inline">{v.name}</span>
+                      <span>{v.name}</span>
                     </button>
                   );
                 })}
