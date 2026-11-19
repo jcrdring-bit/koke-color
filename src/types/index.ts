@@ -74,6 +74,8 @@ export interface StoreSettings {
   mercadopagoCvu?: string;
   mercadopagoQrUrl?: string;
   mercadopagoPublicKey?: string;
+  mercadopagoAccessToken?: string;
+  mercadopagoPaymentLink?: string;
   deepseekApiKey: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;

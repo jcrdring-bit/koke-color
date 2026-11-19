@@ -8,8 +8,6 @@ const STORAGE_KEYS = {
   SETTINGS: 'koke_color_settings_v1',
   CONVERSATIONS: 'koke_color_conversations_v1',
   LEADS: 'koke_color_leads_v1',
-  ADMIN_SESSION: 'koke_color_admin_session_v1', // in sessionStorage
-  ADMIN_PIN: 'koke_color_admin_pin_v1',
 };
 
 export const defaultSettings: StoreSettings = {
@@ -21,6 +19,8 @@ export const defaultSettings: StoreSettings = {
   mercadopagoCvu: import.meta.env.VITE_MERCADOPAGO_CVU || '0000003100040664164018',
   mercadopagoQrUrl: import.meta.env.VITE_MERCADOPAGO_QR_URL || '',
   mercadopagoPublicKey: import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || import.meta.env.VITE_MP_PUBLIC_KEY || '',
+  mercadopagoAccessToken: import.meta.env.VITE_MP_ACCESS_TOKEN || '',
+  mercadopagoPaymentLink: '',
   deepseekApiKey: '', // Protegida exclusivamente en el servidor (Netlify /api/chat)
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
@@ -285,10 +285,6 @@ export const dbService = {
   // === SEGURIDAD Y AUTENTICACIÓN CRIPTOGRÁFICA ===
   isAdminLoggedIn(): boolean {
     return securityService.isSessionValid();
-  },
-
-  async setAdminPin(newPin: string): Promise<void> {
-    await securityService.updatePin(newPin);
   },
 
   async adminLogin(pinOrPass: string): Promise<LoginResult> {

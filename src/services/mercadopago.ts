@@ -113,7 +113,8 @@ export const mercadopagoService = {
    */
   async createCheckoutPreference(
     items: Array<{ plant?: any; name?: string; price?: number; quantity: number; selectedColor?: string }>,
-    originUrl?: string
+    originUrl?: string,
+    accessToken?: string
   ): Promise<{ success: boolean; initPoint?: string; id?: string; error?: string }> {
     try {
       const response = await fetch('/api/create-preference', {
@@ -123,7 +124,8 @@ export const mercadopagoService = {
         },
         body: JSON.stringify({
           items,
-          originUrl: originUrl || window.location.origin
+          originUrl: originUrl || window.location.origin,
+          accessToken: accessToken ? accessToken.trim() : undefined
         })
       });
 

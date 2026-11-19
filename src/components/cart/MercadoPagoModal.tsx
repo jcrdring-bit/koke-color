@@ -117,23 +117,37 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
     setIsLoadingCheckoutPro(true);
     setCheckoutProError(null);
 
+    // Si hay un link de pago directo y no hay Access Token, redirigir directo
+    if (settings.mercadopagoPaymentLink && !settings.mercadopagoAccessToken) {
+      setIsLoadingCheckoutPro(false);
+      window.open(settings.mercadopagoPaymentLink, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     try {
       const result = await mercadopagoService.createCheckoutPreference(
         currentItems,
-        window.location.origin
+        window.location.origin,
+        settings.mercadopagoAccessToken
       );
 
       if (result.success && result.initPoint) {
         // Redirigir a la pasarela oficial y segura de Mercado Pago
         window.location.href = result.initPoint;
+      } else if (settings.mercadopagoPaymentLink) {
+        window.open(settings.mercadopagoPaymentLink, '_blank', 'noopener,noreferrer');
       } else {
         setCheckoutProError(
           result.error ||
-            'No se pudo conectar con Mercado Pago. Asegúrate de tener configurado tu MP_ACCESS_TOKEN.'
+            'El cobro automático con tarjeta requiere configurar el Access Token.'
         );
       }
     } catch (err: any) {
-      setCheckoutProError(err?.message || 'Error al conectar con Mercado Pago.');
+      if (settings.mercadopagoPaymentLink) {
+        window.open(settings.mercadopagoPaymentLink, '_blank', 'noopener,noreferrer');
+      } else {
+        setCheckoutProError(err?.message || 'Error al conectar con Mercado Pago.');
+      }
     } finally {
       setIsLoadingCheckoutPro(false);
     }
@@ -574,13 +588,60 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
                         </div>
 
                         {checkoutProError && (
-                          <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-xs space-y-1">
-                            <div className="flex items-center gap-1.5 font-bold">
-                              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-                              <span>Aviso de configuración</span>
+                          <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-2xl text-xs space-y-3 animate-in fade-in">
+                            <div className="flex items-start gap-2 text-amber-900">
+                              <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                              <div className="space-y-1">
+                                <p className="font-bold">¿Deseas pagar con tarjeta ahora mismo?</p>
+                                <p className="text-[11px] text-amber-800 leading-relaxed">
+                                  ¡No te preocupes! Puedes solicitar tu link de pago seguro al instante por WhatsApp o abonar desde tu app de Mercado Pago.
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-[11px] leading-relaxed">{checkoutProError}</p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                              {/* Botón WhatsApp para pedir link de pago */}
+                              <a
+                                href={whatsappService.createCardPaymentRequestLink(
+                                  settings.whatsappLine2,
+                                  currentItems,
+                                  currentTotal
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                              >
+                                <MessageCircle className="w-4 h-4 shrink-0" />
+                                <span>Pedir link por WhatsApp</span>
+                              </a>
+
+                              {/* Botón para ver Alias y pagar por app MP */}
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('alias')}
+                                className="py-2.5 px-3 rounded-xl bg-white hover:bg-amber-100/70 border border-amber-300 text-amber-950 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                              >
+                                <Copy className="w-4 h-4 shrink-0 text-amber-700" />
+                                <span>Pagar con Alias en la App</span>
+                              </button>
+                            </div>
+
+                            <p className="text-[10px] text-stone-500 text-center pt-1">
+                              💡 <em>Para el administrador: Puedes activar el cobro automático pegando tu Access Token en <strong>Panel Admin &gt; Ajustes</strong>.</em>
+                            </p>
                           </div>
+                        )}
+
+                        {settings.mercadopagoPaymentLink && (
+                          <a
+                            href={settings.mercadopagoPaymentLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-3.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            <span>Pagar con Link Directo de Mercado Pago</span>
+                          </a>
                         )}
 
                         {/* Botón Principal para Checkout Pro */}

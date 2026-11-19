@@ -1,15 +1,15 @@
-// Servicio de Seguridad Criptográfica y Protección contra ataques de fuerza bruta
+// Servicio de Seguridad y Autenticación Cero-Almacenamiento (Zero-Knowledge / Zero-Storage)
+// La clave del administrador NUNCA se guarda en el navegador, ni en localStorage, ni queda precargada.
 
 const STORAGE_KEYS = {
-  ADMIN_PIN_HASH: 'koke_color_admin_pin_hash_v2',
-  ADMIN_SESSION: 'koke_color_admin_session_v2',
-  FAILED_ATTEMPTS: 'koke_color_failed_attempts_v1',
-  LOCKOUT_UNTIL: 'koke_color_lockout_until_v1',
+  ADMIN_SESSION: 'koke_color_admin_session_v3',
+  FAILED_ATTEMPTS: 'koke_color_failed_attempts_v2',
+  LOCKOUT_UNTIL: 'koke_color_lockout_until_v2',
 };
 
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 3 * 60 * 1000; // 3 minutos de bloqueo tras 5 fallos
-const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutos de sesión activa
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutos de bloqueo tras 5 intentos fallidos
+const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutos de sesión activa temporal en memoria
 
 export interface LoginResult {
   success: boolean;
@@ -17,40 +17,16 @@ export interface LoginResult {
   lockedUntil?: number;
 }
 
+// Limpiar inmediatamente cualquier rastro o residuo de claves o hashes almacenados previamente
+try {
+  localStorage.removeItem('koke_color_admin_pin_v1');
+  localStorage.removeItem('koke_color_admin_pin_hash_v1');
+  localStorage.removeItem('koke_color_admin_pin_hash_v2');
+  localStorage.removeItem('koke_color_admin_session_v1');
+  localStorage.removeItem('koke_color_admin_session_v2');
+} catch {}
+
 export const securityService = {
-  /**
-   * Genera un hash criptográfico SHA-256 del texto ingresado
-   */
-  async hashString(text: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  },
-
-  /**
-   * Inicializa el hash del PIN configurado en el almacenamiento seguro
-   */
-  async initializePinHash(configuredPin: string): Promise<void> {
-    const existingHash = localStorage.getItem(STORAGE_KEYS.ADMIN_PIN_HASH);
-    if (!existingHash && configuredPin) {
-      const hash = await this.hashString(configuredPin.trim());
-      localStorage.setItem(STORAGE_KEYS.ADMIN_PIN_HASH, hash);
-    }
-  },
-
-  /**
-   * Cambia el PIN almacenando exclusivamente su hash SHA-256
-   */
-  async updatePin(newPin: string): Promise<void> {
-    if (!newPin || newPin.trim().length < 4) {
-      throw new Error('El PIN debe tener al menos 4 caracteres');
-    }
-    const hash = await this.hashString(newPin.trim());
-    localStorage.setItem(STORAGE_KEYS.ADMIN_PIN_HASH, hash);
-  },
-
   /**
    * Verifica si el login está actualmente bloqueado por exceso de intentos fallidos
    */
@@ -73,15 +49,25 @@ export const securityService = {
   },
 
   /**
-   * Valida el PIN contra el endpoint seguro de Netlify (/api/admin-auth)
-   * con fallback criptográfico local SHA-256 si está offline
+   * Valida la clave exclusivamente contra el endpoint serverless protegido de Netlify (/api/admin-auth).
+   * La clave NUNCA se guarda en el cliente, ni en localStorage, ni en cookies.
    */
-  async verifyAdminLogin(pinInput: string, fallbackConfiguredPin: string = '1976piranaman'): Promise<LoginResult> {
+  async verifyAdminLogin(pinInput: string): Promise<LoginResult> {
     if (!pinInput || !pinInput.trim()) {
-      return { success: false, message: 'Por favor ingresa tu clave o PIN.' };
+      return { success: false, message: 'Por favor ingresa tu clave de administración.' };
     }
 
-    // 1. Intento primario: Validar mediante la función serverless protegida en Netlify
+    // 1. Verificar bloqueo por fuerza bruta
+    const lockStatus = this.isLockedOut();
+    if (lockStatus.locked) {
+      return {
+        success: false,
+        message: `Acceso bloqueado por seguridad. Reintenta en ${lockStatus.remainingSeconds} segundos.`,
+        lockedUntil: Date.now() + lockStatus.remainingSeconds * 1000
+      };
+    }
+
+    // 2. Validación estricta contra la función serverless protegida en Netlify
     try {
       const response = await fetch('/api/admin-auth', {
         method: 'POST',
@@ -89,9 +75,11 @@ export const securityService = {
         body: JSON.stringify({ pin: pinInput.trim() })
       });
 
-      if (response.status === 200) {
-        const data = await response.json();
-        // Éxito: Guardar sesión con token emitido por el servidor
+      const data = await response.json();
+
+      if (response.status === 200 && data.success) {
+        // Éxito: Guardar ÚNICAMENTE un token de sesión aleatorio temporal en sessionStorage
+        // (se autodestruye al cerrar la pestaña o el navegador)
         const sessionData = {
           token: data.token || this.generateSecureToken(),
           expiresAt: Date.now() + SESSION_DURATION_MS
@@ -102,70 +90,30 @@ export const securityService = {
         return { success: true };
       }
 
-      if (response.status === 401 || response.status === 429) {
-        const errorData = await response.json();
+      // Manejo de error o clave incorrecta
+      const attempts = parseInt(localStorage.getItem(STORAGE_KEYS.FAILED_ATTEMPTS) || '0', 10) + 1;
+      localStorage.setItem(STORAGE_KEYS.FAILED_ATTEMPTS, attempts.toString());
+
+      if (attempts >= MAX_FAILED_ATTEMPTS) {
+        const lockoutTime = Date.now() + LOCKOUT_DURATION_MS;
+        localStorage.setItem(STORAGE_KEYS.LOCKOUT_UNTIL, lockoutTime.toString());
         return {
           success: false,
-          message: errorData.error || 'Clave incorrecta.'
+          message: 'Demasiados intentos fallidos. Acceso bloqueado por 5 minutos por seguridad.',
+          lockedUntil: lockoutTime
         };
       }
+
+      return {
+        success: false,
+        message: data.error || 'Clave de administración incorrecta.'
+      };
     } catch {
-      // Si la función serverless no está disponible (modo dev local sin Netlify CLI), usar fallback criptográfico
-    }
-
-    // 2. Fallback local: Verificar bloqueo por fuerza bruta local
-    const lockStatus = this.isLockedOut();
-    if (lockStatus.locked) {
       return {
         success: false,
-        message: `Acceso bloqueado por seguridad. Reintenta en ${lockStatus.remainingSeconds} segundos.`,
-        lockedUntil: Date.now() + lockStatus.remainingSeconds * 1000
+        message: 'No se pudo conectar con el servidor de autenticación de Netlify.'
       };
     }
-
-    // 3. Obtener el hash esperado
-    let expectedHash = localStorage.getItem(STORAGE_KEYS.ADMIN_PIN_HASH);
-    if (!expectedHash) {
-      expectedHash = await this.hashString(fallbackConfiguredPin.trim());
-      localStorage.setItem(STORAGE_KEYS.ADMIN_PIN_HASH, expectedHash);
-    }
-
-    // 4. Hashear el PIN ingresado por el usuario
-    const inputHash = await this.hashString(pinInput.trim());
-
-    if (inputHash === expectedHash) {
-      localStorage.removeItem(STORAGE_KEYS.FAILED_ATTEMPTS);
-      localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
-
-      const sessionToken = this.generateSecureToken();
-      const sessionData = {
-        token: sessionToken,
-        expiresAt: Date.now() + SESSION_DURATION_MS
-      };
-      sessionStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(sessionData));
-
-      return { success: true };
-    }
-
-    // 5. Fallo local: Registrar intento fallido
-    const attempts = parseInt(localStorage.getItem(STORAGE_KEYS.FAILED_ATTEMPTS) || '0', 10) + 1;
-    localStorage.setItem(STORAGE_KEYS.FAILED_ATTEMPTS, attempts.toString());
-
-    if (attempts >= MAX_FAILED_ATTEMPTS) {
-      const lockoutTime = Date.now() + LOCKOUT_DURATION_MS;
-      localStorage.setItem(STORAGE_KEYS.LOCKOUT_UNTIL, lockoutTime.toString());
-      return {
-        success: false,
-        message: 'Demasiados intentos fallidos. Acceso bloqueado por 3 minutos.',
-        lockedUntil: lockoutTime
-      };
-    }
-
-    const remaining = MAX_FAILED_ATTEMPTS - attempts;
-    return {
-      success: false,
-      message: `PIN incorrecto. Te quedan ${remaining} ${remaining === 1 ? 'intento' : 'intentos'}.`
-    };
   },
 
   /**
@@ -178,7 +126,7 @@ export const securityService = {
   },
 
   /**
-   * Comprueba si existe una sesión válida y no expirada
+   * Comprueba si existe una sesión válida y no expirada en sessionStorage
    */
   isSessionValid(): boolean {
     try {
@@ -193,7 +141,7 @@ export const securityService = {
         return false;
       }
 
-      // Deslizar expiración por actividad (30 minutos más)
+      // Renovar expiración por actividad
       data.expiresAt = Date.now() + SESSION_DURATION_MS;
       sessionStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(data));
       return true;
@@ -203,7 +151,7 @@ export const securityService = {
   },
 
   /**
-   * Destruye la sesión de administrador
+   * Destruye la sesión de administrador (cierre de sesión)
    */
   clearSession(): void {
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION);
@@ -217,6 +165,6 @@ export const securityService = {
     return input
       .trim()
       .slice(0, maxLength)
-      .replace(/<[^>]*>?/gm, ''); // Elimina tags HTML
+      .replace(/<[^>]*>?/gm, '');
   }
 };

@@ -20,18 +20,18 @@ export default async (req: Request) => {
   }
 
   try {
-    const accessToken = process.env.MP_ACCESS_TOKEN;
+    const body = await req.json();
+    const { items, payer, originUrl, accessToken: clientToken } = body || {};
+
+    const accessToken = (process.env.MP_ACCESS_TOKEN || clientToken || '').trim();
     if (!accessToken) {
       return new Response(
         JSON.stringify({
-          error: 'Credenciales incompletas: MP_ACCESS_TOKEN no está configurado en las variables de entorno de Netlify.'
+          error: 'Falta configurar tu Access Token de Mercado Pago (puedes pegarlo en el Panel de Administrador > Ajustes o en Netlify como MP_ACCESS_TOKEN).'
         }),
-        { status: 500, headers: corsHeaders }
+        { status: 400, headers: corsHeaders }
       );
     }
-
-    const body = await req.json();
-    const { items, payer, originUrl } = body || {};
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return new Response(

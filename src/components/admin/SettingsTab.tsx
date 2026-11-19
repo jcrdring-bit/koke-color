@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StoreSettings } from '../../types';
 import { dbService } from '../../services/db';
-import { Save, Check, Key, Database, Lock } from 'lucide-react';
+import { Save, Check, Key, Database, Lock, ShieldCheck, CreditCard, ExternalLink } from 'lucide-react';
 
 interface SettingsTabProps {
   settings: StoreSettings;
@@ -10,18 +10,13 @@ interface SettingsTabProps {
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSettings }) => {
   const [formData, setFormData] = useState<StoreSettings>(settings);
-  const [adminPin, setAdminPin] = useState('');
-  const [showPin, setShowPin] = useState(false);
+  const [showMpToken, setShowMpToken] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     dbService.saveSettings(formData);
-    if (adminPin.trim()) {
-      await dbService.setAdminPin(adminPin.trim());
-      setAdminPin('');
-    }
     onUpdateSettings(formData);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -132,9 +127,52 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
             </p>
           </div>
 
+          {/* Access Token de Mercado Pago (Privado) */}
+          <div className="sm:col-span-3 bg-sky-50/60 p-3.5 rounded-2xl border border-sky-100 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sky-950 font-bold">
+                Access Token de Mercado Pago (Privado - para Checkout Pro y Tarjetas):
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowMpToken(!showMpToken)}
+                className="text-[11px] text-sky-700 hover:text-sky-900 font-semibold underline"
+              >
+                {showMpToken ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+            <input
+              type={showMpToken ? 'text' : 'password'}
+              placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxx-xxxxxx-..."
+              value={formData.mercadopagoAccessToken || ''}
+              onChange={(e) => setFormData({ ...formData, mercadopagoAccessToken: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl bg-white border border-sky-200 font-mono text-xs text-sky-950 font-semibold"
+            />
+            <p className="text-[11px] text-sky-800 leading-relaxed">
+              ⭐ <strong>¡Sin complicaciones técnicas!</strong> Pega aquí tu Access Token de producción de Mercado Pago. Activa de inmediato el cobro con todas las tarjetas de crédito (en cuotas) y débito sin tener que entrar a Netlify. (O también puedes definirlo en Netlify como <code>MP_ACCESS_TOKEN</code>).
+            </p>
+          </div>
+
+          {/* Link de Pago directo de Mercado Pago (Opcional) */}
           <div className="sm:col-span-3">
             <label className="block text-[#78716C] mb-1 font-medium">
-              Public Key de Mercado Pago (para cobros con Tarjeta de Crédito):
+              Link de Pago directo de Mercado Pago (Opcional - link.mercadopago.com.ar / mpago.la):
+            </label>
+            <input
+              type="text"
+              placeholder="https://mpago.la/... o https://link.mercadopago.com.ar/..."
+              value={formData.mercadopagoPaymentLink || ''}
+              onChange={(e) => setFormData({ ...formData, mercadopagoPaymentLink: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl bg-white border border-surface-border text-xs text-stone-800"
+            />
+            <p className="text-[11px] text-[#78716C] mt-1">
+              Si tienes un link de pago directo creado en tu app de Mercado Pago, tus clientes podrán usarlo directamente con 1 solo clic.
+            </p>
+          </div>
+
+          <div className="sm:col-span-3">
+            <label className="block text-[#78716C] mb-1 font-medium">
+              Public Key de Mercado Pago (para formulario embebido de tarjeta):
             </label>
             <input
               type="text"
@@ -144,45 +182,26 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
               className="w-full px-3 py-2 rounded-xl bg-white border border-surface-border font-mono text-xs text-sky-950 font-semibold"
             />
             <p className="text-[11px] text-[#78716C] mt-1">
-              Clave pública de desarrollador de Mercado Pago (Public Key). También se puede configurar en Netlify / .env.local como VITE_MP_PUBLIC_KEY.
+              Clave pública opcional para formulario de tarjeta sin salir de la tienda.
             </p>
           </div>
         </div>
       </div>
 
-      {/* PIN de Seguridad del Administrador */}
-      <div className="bg-[#FAF8F5] p-4 rounded-2xl border border-surface-border space-y-3">
+      {/* Seguridad Zero-Storage del Administrador */}
+      <div className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200/80 space-y-2.5">
         <div className="flex items-center gap-2">
-          <Lock className="w-4 h-4 text-[#164e28]" />
-          <h4 className="font-bold text-[#1C1917] text-sm">
-            PIN o Clave de Acceso de Administrador
+          <ShieldCheck className="w-5 h-5 text-[#164e28]" />
+          <h4 className="font-bold text-emerald-950 text-sm">
+            Seguridad de Acceso del Administrador (Zero-Storage)
           </h4>
         </div>
-
-        <div>
-          <label className="block text-[#78716C] mb-1 font-medium">
-            Cambiar clave de acceso (dejar vacío si no deseas cambiarla):
-          </label>
-          <div className="flex gap-2 max-w-sm">
-            <input
-              type={showPin ? 'text' : 'password'}
-              placeholder="Nuevo PIN o clave..."
-              value={adminPin}
-              onChange={(e) => setAdminPin(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-xl bg-white border border-surface-border font-mono font-bold text-xs"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPin(!showPin)}
-              className="px-3 py-1.5 rounded-xl border border-surface-border bg-white text-stone-600 hover:bg-stone-50"
-            >
-              {showPin ? 'Ocultar' : 'Ver'}
-            </button>
-          </div>
-          <p className="text-[11px] text-[#78716C] mt-1">
-            Validada de forma segura en el servidor. También puedes definirla en las variables de entorno de Netlify como <code>ADMIN_PIN</code>.
-          </p>
-        </div>
+        <p className="text-[11px] text-emerald-900 leading-relaxed">
+          🔒 <strong>Máxima protección:</strong> La clave de acceso de administrador se valida exclusivamente en el backend seguro de Netlify mediante la variable de entorno <code>ADMIN_PIN</code>.
+        </p>
+        <p className="text-[11px] text-stone-600 leading-relaxed">
+          Por privacidad y seguridad total, la clave <strong>nunca se almacena en el navegador, cookies ni base de datos pública</strong>, cumpliendo con la política de clave cero-almacenamiento.
+        </p>
       </div>
 
       {/* Antigravity / Gemini AI Key */}

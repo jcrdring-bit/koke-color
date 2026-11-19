@@ -123,5 +123,21 @@ export const whatsappService = {
     ].filter(Boolean).join('\n');
 
     return `https://wa.me/${this.cleanPhone(phone)}?text=${encodeURIComponent(message)}`;
+  },
+
+  createCardPaymentRequestLink(
+    phone: string,
+    items: { plant: Plant; quantity: number; selectedColor?: string }[],
+    total: number
+  ): string {
+    const plantsList = items.map(i => `${i.plant.name}${i.selectedColor ? ` (Flor ${i.selectedColor})` : ''}`).join(', ');
+    const message = [
+      `¡Hola Koke Color! Quisiera abonar mi pedido con Tarjeta de Crédito o Débito por Mercado Pago.`,
+      `*Monto:* $ ${total.toLocaleString('es-AR')}`,
+      `*Kokedamas:* ${plantsList}`,
+      ``,
+      `¿Podrías enviarme un link de pago con tarjeta? ¡Muchas gracias!`
+    ].join('\n');
+    return `https://wa.me/${this.cleanPhone(phone)}?text=${encodeURIComponent(message)}`;
   }
 };

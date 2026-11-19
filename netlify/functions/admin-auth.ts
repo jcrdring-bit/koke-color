@@ -46,10 +46,20 @@ export default async (req: Request) => {
       );
     }
 
-    // Clave configurada en las variables de entorno del servidor
-    const expectedPin = process.env.ADMIN_PIN || process.env.VITE_ADMIN_PIN || '1976piranaman';
+    // Clave configurada estrictamente en las variables de entorno del servidor
+    const expectedPin = process.env.ADMIN_PIN;
 
-    // Comparación segura
+    if (!expectedPin || expectedPin.trim().length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Clave no configurada. Debes definir ADMIN_PIN en las variables de entorno del servidor (Netlify).'
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Comparación segura sin almacenar la clave en ningún registro
     if (pin.trim() === expectedPin.trim()) {
       // Éxito: limpiar historial de fallos
       failedAttempts.delete(clientIp);
