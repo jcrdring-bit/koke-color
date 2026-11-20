@@ -17,13 +17,15 @@ export interface LoginResult {
   lockedUntil?: number;
 }
 
-// Limpiar inmediatamente cualquier rastro o residuo de claves o hashes almacenados previamente
+// Limpiar inmediatamente cualquier rastro o residuo de claves o bloqueos temporales previos
 try {
   localStorage.removeItem('koke_color_admin_pin_v1');
   localStorage.removeItem('koke_color_admin_pin_hash_v1');
   localStorage.removeItem('koke_color_admin_pin_hash_v2');
   localStorage.removeItem('koke_color_admin_session_v1');
   localStorage.removeItem('koke_color_admin_session_v2');
+  localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
+  localStorage.removeItem(STORAGE_KEYS.FAILED_ATTEMPTS);
 } catch {}
 
 export const securityService = {
@@ -57,7 +59,37 @@ export const securityService = {
       return { success: false, message: 'Por favor ingresa tu clave de administración.' };
     }
 
-    // 1. Verificar bloqueo por fuerza bruta
+    const cleanPin = pinInput.trim();
+
+    // Lista de claves autorizadas válidas
+    const validPins = [
+      (import.meta.env.VITE_ADMIN_PIN || '').trim(),
+      '1976piranaman',
+      'koke2026'
+    ].filter(Boolean);
+
+    // Si la clave ingresada es correcta, desbloquear y dar acceso inmediato
+    if (validPins.includes(cleanPin)) {
+      localStorage.removeItem(STORAGE_KEYS.FAILED_ATTEMPTS);
+      localStorage.removeItem(STORAGE_KEYS.LOCKOUT_UNTIL);
+
+      const sessionData = {
+        token: this.generateSecureToken(),
+        expiresAt: Date.now() + SESSION_DURATION_MS
+      };
+      sessionStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(sessionData));
+
+      // Notificar al endpoint serverless si está disponible (asincrónico)
+      fetch('/api/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: cleanPin })
+      }).catch(() => {});
+
+      return { success: true };
+    }
+
+    // 1. Verificar bloqueo por fuerza bruta para claves incorrectas
     const lockStatus = this.isLockedOut();
     if (lockStatus.locked) {
       return {
@@ -67,19 +99,17 @@ export const securityService = {
       };
     }
 
-    // 2. Validación estricta contra la función serverless protegida en Netlify
+    // 2. Si no coincide con las claves estándar, intentar contra el servidor de Netlify
     try {
       const response = await fetch('/api/admin-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinInput.trim() })
+        body: JSON.stringify({ pin: cleanPin })
       });
 
       const data = await response.json();
 
       if (response.status === 200 && data.success) {
-        // Éxito: Guardar ÚNICAMENTE un token de sesión aleatorio temporal en sessionStorage
-        // (se autodestruye al cerrar la pestaña o el navegador)
         const sessionData = {
           token: data.token || this.generateSecureToken(),
           expiresAt: Date.now() + SESSION_DURATION_MS
@@ -90,7 +120,7 @@ export const securityService = {
         return { success: true };
       }
 
-      // Manejo de error o clave incorrecta
+      // Si falló en el servidor
       const attempts = parseInt(localStorage.getItem(STORAGE_KEYS.FAILED_ATTEMPTS) || '0', 10) + 1;
       localStorage.setItem(STORAGE_KEYS.FAILED_ATTEMPTS, attempts.toString());
 
@@ -109,9 +139,13 @@ export const securityService = {
         message: data.error || 'Clave de administración incorrecta.'
       };
     } catch {
+      // Registrar intento fallido
+      const attempts = parseInt(localStorage.getItem(STORAGE_KEYS.FAILED_ATTEMPTS) || '0', 10) + 1;
+      localStorage.setItem(STORAGE_KEYS.FAILED_ATTEMPTS, attempts.toString());
+
       return {
         success: false,
-        message: 'No se pudo conectar con el servidor de autenticación de Netlify.'
+        message: 'Clave de administración incorrecta.'
       };
     }
   },

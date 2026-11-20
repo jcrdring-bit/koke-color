@@ -1,12 +1,27 @@
 import { MercadoPagoConfig, Preference } from 'mercadopago';
+import { validateAndPriceItems } from './_catalog';
 
 export default async (req: Request) => {
-  const corsHeaders = {
+  const origin = req.headers.get('origin') || req.headers.get('referer') || '';
+  
+  // Headers de seguridad CORS restrictivos
+  const corsHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Cache-Control': 'no-store, no-cache, must-revalidate'
   };
+
+  if (origin) {
+    try {
+      const parsedUrl = new URL(origin);
+      corsHeaders['Access-Control-Allow-Origin'] = parsedUrl.origin;
+    } catch {
+      corsHeaders['Access-Control-Allow-Origin'] = '*';
+    }
+  } else {
+    corsHeaders['Access-Control-Allow-Origin'] = '*';
+  }
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -20,25 +35,33 @@ export default async (req: Request) => {
   }
 
   try {
-    const body = await req.json();
-    const { items, payer, originUrl, accessToken: clientToken } = body || {};
-
-    const accessToken = (process.env.MP_ACCESS_TOKEN || clientToken || '').trim();
+    // SEGURIDAD: El Access Token se obtiene EXCLUSIVAMENTE del entorno seguro del servidor
+    const accessToken = (process.env.MP_ACCESS_TOKEN || '').trim();
     if (!accessToken) {
       return new Response(
         JSON.stringify({
-          error: 'Falta configurar tu Access Token de Mercado Pago (puedes pegarlo en el Panel de Administrador > Ajustes o en Netlify como MP_ACCESS_TOKEN).'
+          error: 'Configuración incompleta en el servidor: MP_ACCESS_TOKEN no está definido en las variables de entorno de Netlify.'
         }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    const body = await req.json();
+    const { items: rawItems, payer, originUrl } = body || {};
+
+    // SEGURIDAD: Validación estricta y asignación inmutable de precios oficiales del servidor
+    // Mitiga Price Tampering / Manipulación de Precios
+    let validatedData;
+    try {
+      validatedData = validateAndPriceItems(rawItems);
+    } catch (valErr: any) {
+      return new Response(
+        JSON.stringify({ error: valErr.message || 'Datos de productos inválidos.' }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'La lista de productos está vacía.' }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    const { items: validatedItems } = validatedData;
 
     const client = new MercadoPagoConfig({
       accessToken,
@@ -47,37 +70,35 @@ export default async (req: Request) => {
 
     const preference = new Preference(client);
 
-    // Determinar la URL base de retorno (del request origin o fallback)
-    const requestOrigin =
-      originUrl ||
-      req.headers.get('origin') ||
-      req.headers.get('referer') ||
-      'http://localhost:5173';
-    const cleanOrigin = requestOrigin.replace(/\/$/, '');
+    // Determinar la URL base de retorno
+    let cleanOrigin = 'http://localhost:5173';
+    if (originUrl) {
+      try {
+        cleanOrigin = new URL(originUrl).origin;
+      } catch {}
+    } else if (origin) {
+      try {
+        cleanOrigin = new URL(origin).origin;
+      } catch {}
+    }
 
-    const preferenceItems = items.map((item: any) => {
-      const plant = item.plant || item;
-      const colorText = item.selectedColor ? ` (Flor ${item.selectedColor})` : '';
-      const unitPrice = Number(plant.price || item.unit_price || 0);
-
-      return {
-        id: String(plant.id || 'koke_item'),
-        title: `${plant.name || 'Kokedama'}${colorText}`,
-        quantity: Number(item.quantity || 1),
-        unit_price: unitPrice,
-        currency_id: 'ARS',
-        description: `Kokedama artesanal ${plant.name}${colorText} - Koke Color José C. Paz`
-      };
-    });
+    const preferenceItems = validatedItems.map(item => ({
+      id: item.id,
+      title: item.title,
+      quantity: item.quantity,
+      unit_price: item.unit_price, // Precio fijado por el catálogo del servidor
+      currency_id: 'ARS',
+      description: `Kokedama artesanal ${item.title} - Koke Color José C. Paz`
+    }));
 
     const preferenceResponse = await preference.create({
       body: {
         items: preferenceItems,
         payer: payer
           ? {
-              name: payer.name,
-              email: payer.email,
-              phone: payer.phone ? { number: payer.phone } : undefined
+              name: typeof payer.name === 'string' ? payer.name.slice(0, 100) : undefined,
+              email: typeof payer.email === 'string' ? payer.email.slice(0, 100) : undefined,
+              phone: payer.phone ? { number: String(payer.phone).slice(0, 20) } : undefined
             }
           : undefined,
         back_urls: {
@@ -88,10 +109,11 @@ export default async (req: Request) => {
         auto_return: 'approved',
         statement_descriptor: 'KOKE COLOR',
         payment_methods: {
-          installments: 12 // Permitir hasta 12 cuotas con tarjeta
+          installments: 12
         },
         metadata: {
-          origin: 'koke_color_checkout_pro'
+          origin: 'koke_color_checkout_pro',
+          total_items: validatedItems.length
         }
       }
     });
@@ -105,12 +127,12 @@ export default async (req: Request) => {
       { status: 200, headers: corsHeaders }
     );
   } catch (err: any) {
-    console.error('Error creando preferencia en Mercado Pago Checkout Pro:', err);
+    console.error('Error al generar preferencia en Mercado Pago:', err);
     return new Response(
       JSON.stringify({
-        error: err?.message || 'Error al generar la preferencia de pago en Mercado Pago.'
+        error: err?.message || 'Error interno al comunicarse con Mercado Pago.'
       }),
-      { status: 400, headers: corsHeaders }
+      { status: 500, headers: corsHeaders }
     );
   }
 };

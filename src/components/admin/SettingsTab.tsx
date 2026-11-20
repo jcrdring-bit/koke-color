@@ -127,29 +127,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSett
             </p>
           </div>
 
-          {/* Access Token de Mercado Pago (Privado) */}
-          <div className="sm:col-span-3 bg-sky-50/60 p-3.5 rounded-2xl border border-sky-100 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sky-950 font-bold">
-                Access Token de Mercado Pago (Privado - para Checkout Pro y Tarjetas):
+          {/* Access Token de Mercado Pago (Protegido en Servidor) */}
+          <div className="sm:col-span-3 bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 space-y-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
+              <label className="block text-emerald-950 font-bold">
+                Access Token de Mercado Pago (Máxima Seguridad en Backend):
               </label>
-              <button
-                type="button"
-                onClick={() => setShowMpToken(!showMpToken)}
-                className="text-[11px] text-sky-700 hover:text-sky-900 font-semibold underline"
-              >
-                {showMpToken ? 'Ocultar' : 'Mostrar'}
-              </button>
             </div>
-            <input
-              type={showMpToken ? 'text' : 'password'}
-              placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxx-xxxxxx-..."
-              value={formData.mercadopagoAccessToken || ''}
-              onChange={(e) => setFormData({ ...formData, mercadopagoAccessToken: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl bg-white border border-sky-200 font-mono text-xs text-sky-950 font-semibold"
-            />
-            <p className="text-[11px] text-sky-800 leading-relaxed">
-              ⭐ <strong>¡Sin complicaciones técnicas!</strong> Pega aquí tu Access Token de producción de Mercado Pago. Activa de inmediato el cobro con todas las tarjetas de crédito (en cuotas) y débito sin tener que entrar a Netlify. (O también puedes definirlo en Netlify como <code>MP_ACCESS_TOKEN</code>).
+            <p className="text-[11px] text-emerald-900 leading-relaxed">
+              🔒 <strong>Protección PCI-DSS / Cero Exposición:</strong> Por estrictas razones de seguridad financiera, el <strong>Access Token privado</strong> de Mercado Pago se gestiona exclusivamente como variable de entorno segura en el servidor de Netlify (<code>MP_ACCESS_TOKEN</code>). De esta manera, tu clave privada jamás viaja al navegador ni queda expuesta a scripts de terceros.
             </p>
           </div>
 

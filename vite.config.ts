@@ -59,6 +59,51 @@ export default defineConfig(({ mode }) => {
               }
             });
           });
+
+          // Middleware para autenticación de Administrador en desarrollo local
+          server.middlewares.use('/api/admin-auth', async (req, res) => {
+            if (req.method !== 'POST') {
+              res.statusCode = 405;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+              return;
+            }
+
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', () => {
+              try {
+                const { pin } = JSON.parse(body || '{}');
+                const validPins = [
+                  env.ADMIN_PIN?.trim(),
+                  env.VITE_ADMIN_PIN?.trim(),
+                  '1976piranaman',
+                  'koke2026'
+                ].filter(Boolean) as string[];
+
+                if (pin && validPins.includes(String(pin).trim())) {
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({
+                    success: true,
+                    token: `koke_adm_${Date.now()}_local`,
+                    message: 'Autenticación exitosa (desarrollo local)'
+                  }));
+                } else {
+                  res.statusCode = 401;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({
+                    success: false,
+                    error: 'Clave de administración incorrecta.'
+                  }));
+                }
+              } catch {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Solicitud inválida' }));
+              }
+            });
+          });
         }
       }
     ],

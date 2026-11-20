@@ -19,7 +19,7 @@ export const defaultSettings: StoreSettings = {
   mercadopagoCvu: import.meta.env.VITE_MERCADOPAGO_CVU || '0000003100040664164018',
   mercadopagoQrUrl: import.meta.env.VITE_MERCADOPAGO_QR_URL || '',
   mercadopagoPublicKey: import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || import.meta.env.VITE_MP_PUBLIC_KEY || '',
-  mercadopagoAccessToken: import.meta.env.VITE_MP_ACCESS_TOKEN || '',
+  mercadopagoAccessToken: '', // Protegido exclusivamente en el servidor (Netlify MP_ACCESS_TOKEN)
   mercadopagoPaymentLink: '',
   deepseekApiKey: '', // Protegida exclusivamente en el servidor (Netlify /api/chat)
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
@@ -154,11 +154,14 @@ export const dbService = {
       const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (data) {
         const parsed = JSON.parse(data);
+        if (parsed.mercadopagoAccessToken) {
+          delete parsed.mercadopagoAccessToken;
+        }
         if (parsed.whatsappLine2 === '5491121848294' || parsed.whatsappLine2 === '1121848294') {
           parsed.whatsappLine2 = defaultSettings.whatsappLine2;
           this.saveSettings({ ...defaultSettings, ...parsed });
         }
-        return { ...defaultSettings, ...parsed };
+        return { ...defaultSettings, ...parsed, mercadopagoAccessToken: '' };
       }
     } catch (e) {
       console.error('Error reading settings', e);
@@ -167,7 +170,11 @@ export const dbService = {
   },
 
   saveSettings(settings: StoreSettings): void {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    const safeSettings: Partial<StoreSettings> = { ...settings };
+    // Asegurar que claves privadas nunca se persistan en localStorage
+    delete safeSettings.mercadopagoAccessToken;
+    delete safeSettings.deepseekApiKey;
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(safeSettings));
   },
 
   // === CRM & CONVERSACIONES ===

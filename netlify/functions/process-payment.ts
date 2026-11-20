@@ -1,4 +1,5 @@
 import { MercadoPagoConfig, Payment } from 'mercadopago';
+import { validateAndPriceItems } from './_catalog';
 
 // Mapeo amigable de respuestas de error de Mercado Pago para tarjetas
 const STATUS_DETAIL_MESSAGES: Record<string, string> = {
@@ -18,13 +19,25 @@ const STATUS_DETAIL_MESSAGES: Record<string, string> = {
 };
 
 export default async (req: Request) => {
-  // CORS Headers
-  const corsHeaders = {
+  const origin = req.headers.get('origin') || req.headers.get('referer') || '';
+  
+  const corsHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Cache-Control': 'no-store, no-cache, must-revalidate'
   };
+
+  if (origin) {
+    try {
+      const parsedUrl = new URL(origin);
+      corsHeaders['Access-Control-Allow-Origin'] = parsedUrl.origin;
+    } catch {
+      corsHeaders['Access-Control-Allow-Origin'] = '*';
+    }
+  } else {
+    corsHeaders['Access-Control-Allow-Origin'] = '*';
+  }
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -58,8 +71,6 @@ export default async (req: Request) => {
     }
 
     const token = typeof body.token === 'string' ? body.token.trim() : '';
-    const amount = Number(body.transaction_amount);
-
     if (!token || token.length < 8) {
       return new Response(
         JSON.stringify({ error: 'Token de pago de tarjeta inválido o ausente.' }),
@@ -67,11 +78,28 @@ export default async (req: Request) => {
       );
     }
 
-    if (isNaN(amount) || amount <= 0 || !isFinite(amount) || amount > 50000000) {
-      return new Response(
-        JSON.stringify({ error: 'Monto de transacción inválido o fuera de rango.' }),
-        { status: 400, headers: corsHeaders }
-      );
+    // SEGURIDAD: Validación estricta del monto recalculando los productos en el servidor
+    let finalAmount = 0;
+    if (body.items && Array.isArray(body.items) && body.items.length > 0) {
+      try {
+        const validated = validateAndPriceItems(body.items);
+        finalAmount = validated.totalAmount;
+      } catch (valErr: any) {
+        return new Response(
+          JSON.stringify({ error: `Validación de compra fallida: ${valErr.message}` }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+    } else {
+      // Fallback si no vinieron items: validar el monto recibido contra límites estrictos
+      const clientAmount = Number(body.transaction_amount);
+      if (isNaN(clientAmount) || clientAmount < 1000 || clientAmount > 2000000) {
+        return new Response(
+          JSON.stringify({ error: 'Monto de transacción inválido o fuera del rango permitido.' }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      finalAmount = clientAmount;
     }
 
     const client = new MercadoPagoConfig({
@@ -90,47 +118,49 @@ export default async (req: Request) => {
         token,
         issuer_id: body.issuer_id ? String(body.issuer_id) : undefined,
         payment_method_id: body.payment_method_id,
-        transaction_amount: amount,
+        transaction_amount: finalAmount, // Monto verificado por el servidor
         installments: Number(body.installments || 1),
         description: safeDescription,
         payer: {
-          email: body.payer?.email || 'cliente@koke-color.com',
+          email: typeof body.payer?.email === 'string' ? body.payer.email.slice(0, 100) : 'cliente@koke-color.com',
           identification: body.payer?.identification ? {
-            type: body.payer.identification.type,
-            number: body.payer.identification.number
+            type: String(body.payer.identification.type || 'DNI').slice(0, 10),
+            number: String(body.payer.identification.number || '').slice(0, 20)
           } : undefined
         },
         metadata: {
-          items: body.items || [],
-          origin: 'koke_color_card_brick'
+          origin: 'koke_color_card_bricks',
+          verified_amount: finalAmount
         }
       }
     });
 
+    const status = paymentResponse.status || 'unknown';
     const statusDetail = paymentResponse.status_detail || '';
-    const friendlyMessage = STATUS_DETAIL_MESSAGES[statusDetail] || 'Operación procesada por Mercado Pago.';
+    const friendlyMessage = STATUS_DETAIL_MESSAGES[statusDetail] || paymentResponse.message || 'Pago procesado.';
 
     return new Response(
       JSON.stringify({
         id: paymentResponse.id,
-        status: paymentResponse.status,
+        status,
         status_detail: statusDetail,
+        message: friendlyMessage,
         payment_method_id: paymentResponse.payment_method_id,
-        installments: paymentResponse.installments,
-        transaction_amount: paymentResponse.transaction_amount,
-        message: friendlyMessage
+        transaction_amount: paymentResponse.transaction_amount
       }),
       { status: 200, headers: corsHeaders }
     );
   } catch (err: any) {
-    console.error('Error procesando pago con tarjeta en Mercado Pago:', err);
-    const errorMessage = err?.message || err?.cause?.description || 'Error al procesar el pago en Mercado Pago.';
+    console.error('Error al procesar el pago con tarjeta:', err);
+
+    const errorMessage =
+      err?.cause?.[0]?.description ||
+      err?.message ||
+      'No se pudo completar el procesamiento del pago.';
+
     return new Response(
-      JSON.stringify({
-        error: errorMessage,
-        details: err?.cause || null
-      }),
-      { status: 400, headers: corsHeaders }
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: corsHeaders }
     );
   }
 };

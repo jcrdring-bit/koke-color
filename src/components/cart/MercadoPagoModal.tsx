@@ -117,18 +117,10 @@ export const MercadoPagoModal: React.FC<MercadoPagoModalProps> = ({
     setIsLoadingCheckoutPro(true);
     setCheckoutProError(null);
 
-    // Si hay un link de pago directo y no hay Access Token, redirigir directo
-    if (settings.mercadopagoPaymentLink && !settings.mercadopagoAccessToken) {
-      setIsLoadingCheckoutPro(false);
-      window.open(settings.mercadopagoPaymentLink, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
     try {
       const result = await mercadopagoService.createCheckoutPreference(
         currentItems,
-        window.location.origin,
-        settings.mercadopagoAccessToken
+        window.location.origin
       );
 
       if (result.success && result.initPoint) {

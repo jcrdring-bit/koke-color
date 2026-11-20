@@ -71,8 +71,7 @@ ${catalogSummary}
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          messages,
-          systemInstruction: this.buildSystemPrompt(plants, settings)
+          messages
         })
       });
 

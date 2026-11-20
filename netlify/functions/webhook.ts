@@ -1,5 +1,5 @@
 // Netlify Serverless Function para Meta Webhook (WhatsApp Cloud API / Messenger / Lead Ads)
-// Incluye validación de token y verificación criptográfica de firma HMAC-SHA256 (X-Hub-Signature-256)
+// Incluye validación de token y verificación criptográfica estricta de firma HMAC-SHA256 (X-Hub-Signature-256)
 
 import crypto from 'crypto';
 
@@ -41,43 +41,52 @@ export default async (req: Request) => {
     const token = url.searchParams.get('hub.verify_token');
     const challenge = url.searchParams.get('hub.challenge');
 
-    const expectedToken = process.env.META_VERIFY_TOKEN || 'koke_color_verify_token';
-
-    if (mode === 'subscribe' && token === expectedToken) {
-      console.log('Meta Webhook verificado exitosamente!');
-      return new Response(challenge || '', {
-        status: 200,
-        headers: { 'Content-Type': 'text/plain' }
-      });
+    const expectedToken = process.env.META_VERIFY_TOKEN;
+    if (!expectedToken) {
+      return new Response('META_VERIFY_TOKEN no configurado en el servidor', { status: 500 });
     }
 
-    // Si no coincide o falta el token
-    return new Response('Verificación fallida: token no coincide', { status: 403 });
+    if (mode === 'subscribe' && token) {
+      const tokenBuf = Buffer.from(token, 'utf8');
+      const expectedBuf = Buffer.from(expectedToken, 'utf8');
+      
+      const isMatch = tokenBuf.length === expectedBuf.length && crypto.timingSafeEqual(tokenBuf, expectedBuf);
+
+      if (isMatch) {
+        console.log('Meta Webhook verificado exitosamente!');
+        return new Response(challenge || '', {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+    }
+
+    return new Response('Verificación fallida: token no autorizado', { status: 403 });
   }
 
-  // 2. Recepción de eventos y mensajes en tiempo real (POST Request)
+  // 2. Recepción de eventos en tiempo real (POST Request)
   if (req.method === 'POST') {
     try {
       const rawBody = await req.text();
       const appSecret = process.env.META_APP_SECRET;
 
-      // Validación criptográfica de autenticidad
-      if (appSecret) {
-        const signature = req.headers.get('x-hub-signature-256');
-        const isValid = verifySignature(signature, rawBody, appSecret);
+      // SEGURIDAD: Exigir obligatoriamente la clave secreta y la firma de Meta
+      if (!appSecret) {
+        console.error('META_APP_SECRET no está configurado en las variables de entorno.');
+        return new Response('Configuración de servidor incompleta', { status: 500 });
+      }
 
-        if (!isValid) {
-          console.warn('Firma de Meta inválida o ausente en solicitud entrante');
-          return new Response('Firma no autorizada', { status: 401 });
-        }
-      } else {
-        console.warn('Advertencia: META_APP_SECRET no está configurado. Se recomienda configurarlo en Netlify para validar firmas.');
+      const signature = req.headers.get('x-hub-signature-256');
+      const isValid = verifySignature(signature, rawBody, appSecret);
+
+      if (!isValid) {
+        console.warn('Firma de Meta inválida o ausente en solicitud entrante.');
+        return new Response('Firma no autorizada', { status: 401 });
       }
 
       const data = JSON.parse(rawBody);
-      console.log('Evento genuino de Meta recibido:', JSON.stringify(data));
+      console.log('Evento genuino y verificado de Meta recibido:', JSON.stringify(data));
 
-      // Procesamiento de mensajes entrantes de WhatsApp
       return new Response('EVENT_RECEIVED', {
         status: 200,
         headers: { 'Content-Type': 'text/plain' }
